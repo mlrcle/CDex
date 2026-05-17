@@ -14,6 +14,7 @@ export default function AlbumPage() {
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
   const [userAlbums, setUserAlbums] = useState<any[]>([]);
+  const [wishlistAlbums, setWishlistAlbums] = useState<any[]>([]);
   const [previewAlbum, setPreviewAlbum] = useState<any>(null);
 
   const [listenOpen, setListenOpen] = useState(false);
@@ -40,6 +41,25 @@ export default function AlbumPage() {
     setTimeout(() => setToast(""), 2200);
   }
 
+  function goBackSmart() {
+    const savedSearchReturn = sessionStorage.getItem("cdex-search-return");
+
+    if (savedSearchReturn) {
+      const data = JSON.parse(savedSearchReturn);
+      const mode = data.mode === "wishlist" ? "&mode=wishlist" : "";
+
+      router.push(
+        `/add/search?query=${encodeURIComponent(data.query ?? "")}&sort=${
+          data.sort ?? "relevance"
+        }${mode}`
+      );
+
+      return;
+    }
+
+    router.back();
+  }
+
   function handleImageFile(file: File | undefined) {
     if (!file) return;
 
@@ -57,9 +77,11 @@ export default function AlbumPage() {
 
   useEffect(() => {
     const savedUserAlbums = localStorage.getItem("cdex-user-albums");
+    const savedWishlist = localStorage.getItem("cdex-wishlist");
     const savedPreviewAlbum = sessionStorage.getItem("cdex-preview-album");
 
     if (savedUserAlbums) setUserAlbums(JSON.parse(savedUserAlbums));
+    if (savedWishlist) setWishlistAlbums(JSON.parse(savedWishlist));
 
     if (savedPreviewAlbum) {
       const parsedPreview = JSON.parse(savedPreviewAlbum);
@@ -69,6 +91,7 @@ export default function AlbumPage() {
 
   const allAlbums = [
     ...userAlbums,
+    ...wishlistAlbums,
     ...(previewAlbum ? [previewAlbum] : []),
     ...albums,
   ];
@@ -146,7 +169,7 @@ export default function AlbumPage() {
     return (
       <main className="mx-auto max-w-md px-5 py-6">
         <button
-          onClick={() => router.back()}
+          onClick={goBackSmart}
           className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-blue-100 bg-white/90 text-2xl font-black text-[#2155ff] shadow"
         >
           ←
@@ -181,6 +204,31 @@ export default function AlbumPage() {
   };
 
   const isInCollection = userAlbums.some((item) => item.id === albumId);
+  const isInWishlist = wishlistAlbums.some((item) => item.id === albumId);
+
+  function toggleWishlist() {
+    const savedWishlist = localStorage.getItem("cdex-wishlist");
+    const currentWishlist = savedWishlist ? JSON.parse(savedWishlist) : [];
+
+    const alreadyExists = currentWishlist.some(
+      (item: any) => item.id === album.id
+    );
+
+    let updatedWishlist;
+
+    if (alreadyExists) {
+      updatedWishlist = currentWishlist.filter(
+        (item: any) => item.id !== album.id
+      );
+      showToast(`"${album.title}" retiré de la wishlist.`);
+    } else {
+      updatedWishlist = [...currentWishlist, album];
+      showToast(`"${album.title}" ajouté à la wishlist.`);
+    }
+
+    localStorage.setItem("cdex-wishlist", JSON.stringify(updatedWishlist));
+    setWishlistAlbums(updatedWishlist);
+  }
 
   function addPreviewToCollection() {
     const savedUserAlbums = localStorage.getItem("cdex-user-albums");
@@ -235,7 +283,7 @@ export default function AlbumPage() {
       )}
 
       <button
-        onClick={() => router.back()}
+        onClick={goBackSmart}
         className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-blue-100 bg-white/90 text-2xl font-black text-[#2155ff] shadow"
       >
         ←
@@ -258,7 +306,7 @@ export default function AlbumPage() {
 
       <section className="overflow-hidden rounded-[2.2rem] border border-blue-100/60 bg-white/80 shadow">
         <div className="p-5">
-          <div className="aspect-square overflow-hidden rounded-[1.8rem] bg-blue-50 shadow-lg">
+          <div className="relative aspect-square overflow-hidden rounded-[1.8rem] bg-blue-50 shadow-lg">
             {album.cover ? (
               <img
                 src={album.cover}
@@ -270,6 +318,17 @@ export default function AlbumPage() {
                 <div className="h-20 w-20 rounded-full border-4 border-blue-400 opacity-60" />
               </div>
             )}
+
+            <button
+              onClick={toggleWishlist}
+              className={`absolute bottom-4 right-4 flex h-12 w-12 items-center justify-center rounded-full border text-2xl font-black shadow-xl ${
+                isInWishlist
+                  ? "border-red-200 bg-red-50 text-red-500"
+                  : "border-blue-100 bg-white/90 text-blue-400"
+              }`}
+            >
+              ♥
+            </button>
           </div>
 
           {editMode && (

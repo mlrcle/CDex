@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type MusicBrainzRelease = {
   id: string;
@@ -35,22 +35,36 @@ type UserAlbum = {
 
 export default function SearchAlbumPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<"relevance" | "newest" | "oldest">("relevance");
+  const isWishlistMode = searchParams.get("mode") === "wishlist";
+
+  const [query, setQuery] = useState(searchParams.get("query") ?? "");
+  const [sort, setSort] = useState<"relevance" | "newest" | "oldest">(
+    (searchParams.get("sort") as "relevance" | "newest" | "oldest") ??
+      "relevance"
+  );
+
   const [suggestions, setSuggestions] = useState<MusicBrainzRelease[]>([]);
+  const [suggestionsActive, setSuggestionsActive] = useState(true);
+
   const [results, setResults] = useState<MusicBrainzRelease[]>([]);
   const [loading, setLoading] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [toast, setToast] = useState("");
+
   const [userAlbums, setUserAlbums] = useState<UserAlbum[]>([]);
+  const [wishlistAlbums, setWishlistAlbums] = useState<UserAlbum[]>([]);
 
   useEffect(() => {
     cleanSavedAlbums();
+    cleanSavedWishlist();
   }, []);
 
   useEffect(() => {
+    if (!suggestionsActive) return;
+
     if (query.trim().length < 2) {
       setSuggestions([]);
       return;
@@ -61,22 +75,21 @@ export default function SearchAlbumPage() {
     }, 450);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, suggestionsActive]);
 
   const sortedResults = useMemo(() => {
     return sortReleases(results, sort);
   }, [results, sort]);
 
-  const userAlbumIds = useMemo(() => {
-    return userAlbums.map((album) => album.id);
-  }, [userAlbums]);
+  const currentTargetIds = useMemo(() => {
+    return isWishlistMode
+      ? wishlistAlbums.map((album) => album.id)
+      : userAlbums.map((album) => album.id);
+  }, [isWishlistMode, userAlbums, wishlistAlbums]);
 
   function showToast(text: string) {
     setToast(text);
-
-    setTimeout(() => {
-      setToast("");
-    }, 2500);
+    setTimeout(() => setToast(""), 2500);
   }
 
   function cleanSavedAlbums() {
@@ -86,6 +99,17 @@ export default function SearchAlbumPage() {
 
     localStorage.setItem("cdex-user-albums", JSON.stringify(cleanedAlbums));
     setUserAlbums(cleanedAlbums);
+  }
+
+  function cleanSavedWishlist() {
+    const savedWishlist = localStorage.getItem("cdex-wishlist");
+    const parsedWishlist: UserAlbum[] = savedWishlist
+      ? JSON.parse(savedWishlist)
+      : [];
+    const cleanedWishlist = removeDuplicateAlbums(parsedWishlist);
+
+    localStorage.setItem("cdex-wishlist", JSON.stringify(cleanedWishlist));
+    setWishlistAlbums(cleanedWishlist);
   }
 
   async function fetchSuggestions(searchText: string) {
@@ -116,7 +140,10 @@ export default function SearchAlbumPage() {
     setLoading(true);
     setMessage("");
     setSuggestions([]);
+    setSuggestionsActive(false);
+
     cleanSavedAlbums();
+    cleanSavedWishlist();
 
     try {
       const [releaseResponse, recordingResponse] = await Promise.all([
@@ -192,22 +219,23 @@ export default function SearchAlbumPage() {
   }
 
   function addAlbum(release: MusicBrainzRelease) {
+    const newAlbum = createAlbumFromRelease(release);
+
+    if (isWishlistMode) {
+      return addToWishlist(newAlbum);
+    }
+
     const savedAlbums = localStorage.getItem("cdex-user-albums");
     const currentAlbums: UserAlbum[] = savedAlbums ? JSON.parse(savedAlbums) : [];
-
     const cleanedAlbums = removeDuplicateAlbums(currentAlbums);
-    const newAlbum = createAlbumFromRelease(release);
 
     const alreadyExists = cleanedAlbums.some((album) => album.id === newAlbum.id);
 
     if (alreadyExists) {
-      localStorage.setItem("cdex-user-albums", JSON.stringify(cleanedAlbums));
+      const alreadyMessage = `"${newAlbum.title}" est déjà dans ta collection.`;
       setUserAlbums(cleanedAlbums);
-
-      const alreadyMessage = `"${release.title}" est déjà dans ta collection.`;
       setMessage(alreadyMessage);
       showToast(alreadyMessage);
-
       return false;
     }
 
@@ -216,17 +244,80 @@ export default function SearchAlbumPage() {
     localStorage.setItem("cdex-user-albums", JSON.stringify(updatedAlbums));
     setUserAlbums(updatedAlbums);
 
-    const successMessage = `"${release.title}" a bien été ajouté à ta collection.`;
+    const successMessage = `"${newAlbum.title}" a bien été ajouté à ta collection.`;
     setMessage(successMessage);
     showToast(successMessage);
 
     return true;
   }
 
+  function addToWishlist(album: UserAlbum) {
+    const savedWishlist = localStorage.getItem("cdex-wishlist");
+    const currentWishlist: UserAlbum[] = savedWishlist
+      ? JSON.parse(savedWishlist)
+      : [];
+
+    const cleanedWishlist = removeDuplicateAlbums(currentWishlist);
+
+    const alreadyExists = cleanedWishlist.some((item) => item.id === album.id);
+
+    if (alreadyExists) {
+      const alreadyMessage = `"${album.title}" est déjà dans ta wishlist.`;
+      setWishlistAlbums(cleanedWishlist);
+      setMessage(alreadyMessage);
+      showToast(alreadyMessage);
+      return false;
+    }
+
+    const updatedWishlist = removeDuplicateAlbums([...cleanedWishlist, album]);
+
+    localStorage.setItem("cdex-wishlist", JSON.stringify(updatedWishlist));
+    setWishlistAlbums(updatedWishlist);
+
+    const successMessage = `"${album.title}" a bien été ajouté à ta wishlist.`;
+    setMessage(successMessage);
+    showToast(successMessage);
+
+    return true;
+  }
+
+  function toggleWishlist(release: MusicBrainzRelease) {
+    const album = createAlbumFromRelease(release);
+
+    const savedWishlist = localStorage.getItem("cdex-wishlist");
+    const currentWishlist: UserAlbum[] = savedWishlist
+      ? JSON.parse(savedWishlist)
+      : [];
+
+    const alreadyExists = currentWishlist.some((item) => item.id === album.id);
+
+    let updatedWishlist;
+
+    if (alreadyExists) {
+      updatedWishlist = currentWishlist.filter((item) => item.id !== album.id);
+      showToast(`"${album.title}" retiré de la wishlist.`);
+    } else {
+      updatedWishlist = removeDuplicateAlbums([...currentWishlist, album]);
+      showToast(`"${album.title}" ajouté à la wishlist.`);
+    }
+
+    localStorage.setItem("cdex-wishlist", JSON.stringify(updatedWishlist));
+    setWishlistAlbums(updatedWishlist);
+  }
+
   function openAlbumPage(release: MusicBrainzRelease) {
     const previewAlbum = createAlbumFromRelease(release);
 
     sessionStorage.setItem("cdex-preview-album", JSON.stringify(previewAlbum));
+
+    sessionStorage.setItem(
+      "cdex-search-return",
+      JSON.stringify({
+        query,
+        sort,
+        mode: isWishlistMode ? "wishlist" : "collection",
+      })
+    );
 
     router.push(`/album/${release.id}`);
   }
@@ -237,6 +328,12 @@ export default function SearchAlbumPage() {
 
     setQuery(`${release.title} ${artist}`.trim());
     setSuggestions([]);
+    setSuggestionsActive(false);
+  }
+
+  function updateQuery(value: string) {
+    setQuery(value);
+    setSuggestionsActive(true);
   }
 
   return (
@@ -256,11 +353,11 @@ export default function SearchAlbumPage() {
 
       <section className="rounded-[2.2rem] border border-blue-100/60 bg-white/80 p-7 shadow-[0_10px_40px_rgba(80,120,255,0.12)]">
         <p className="mb-2 text-sm font-bold uppercase tracking-widest text-blue-500">
-          Recherche
+          {isWishlistMode ? "Wishlist" : "Recherche"}
         </p>
 
         <h1 className="text-5xl font-black leading-none text-[#2155ff]">
-          Trouver un album
+          {isWishlistMode ? "Ajouter une envie" : "Trouver un album"}
         </h1>
 
         <p className="mt-5 text-base leading-7 text-[#5e6b85]">
@@ -270,7 +367,7 @@ export default function SearchAlbumPage() {
         <div className="relative mt-6 flex flex-col gap-3">
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => updateQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") searchAlbums();
             }}
@@ -278,8 +375,8 @@ export default function SearchAlbumPage() {
             className="w-full rounded-2xl border border-blue-100 bg-white px-5 py-4 text-sm font-semibold text-[#071f4f] outline-none placeholder:text-slate-400 focus:border-blue-400"
           />
 
-          {query.length >= 2 && suggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-[58px] z-30 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-xl">
+          {suggestionsActive && query.length >= 2 && suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-[58px] z-30 max-h-72 overflow-y-auto rounded-2xl border border-blue-100 bg-white shadow-xl">
               {suggestions.map((release) => {
                 const artist =
                   release["artist-credit"]
@@ -306,7 +403,7 @@ export default function SearchAlbumPage() {
             </div>
           )}
 
-          {suggestLoading && (
+          {suggestLoading && suggestionsActive && (
             <p className="px-2 text-xs font-bold text-blue-400">
               Suggestions...
             </p>
@@ -362,18 +459,22 @@ export default function SearchAlbumPage() {
 
           const cover = `https://coverartarchive.org/release/${release.id}/front-500`;
 
-          const alreadyAdded = userAlbumIds.includes(release.id);
+          const alreadyAdded = currentTargetIds.includes(release.id);
+
+          const isInWishlist = wishlistAlbums.some(
+            (album) => album.id === release.id
+          );
 
           return (
             <article
               key={release.id}
               className="overflow-hidden rounded-[1.8rem] border border-blue-100 bg-white/80 shadow-lg"
             >
-              <button
-                onClick={() => openAlbumPage(release)}
-                className="block w-full text-left"
-              >
-                <div className="aspect-square overflow-hidden bg-blue-50">
+              <div className="relative aspect-square overflow-hidden bg-blue-50">
+                <button
+                  onClick={() => openAlbumPage(release)}
+                  className="block h-full w-full text-left"
+                >
                   <img
                     src={cover}
                     alt={release.title}
@@ -382,8 +483,19 @@ export default function SearchAlbumPage() {
                       event.currentTarget.style.display = "none";
                     }}
                   />
-                </div>
-              </button>
+                </button>
+
+                <button
+                  onClick={() => toggleWishlist(release)}
+                  className={`absolute bottom-4 right-4 flex h-12 w-12 items-center justify-center rounded-full border text-2xl font-black shadow-xl ${
+                    isInWishlist
+                      ? "border-red-200 bg-red-50 text-red-500"
+                      : "border-blue-100 bg-white/90 text-blue-400"
+                  }`}
+                >
+                  ♥
+                </button>
+              </div>
 
               <div className="p-5">
                 <button
@@ -422,7 +534,13 @@ export default function SearchAlbumPage() {
                         : "border-blue-200 bg-white text-[#2155ff]"
                     }`}
                   >
-                    {alreadyAdded ? "Déjà ajouté" : "Ajouter à ma collection"}
+                    {alreadyAdded
+                      ? isWishlistMode
+                        ? "Déjà dans la wishlist"
+                        : "Déjà ajouté"
+                      : isWishlistMode
+                      ? "Ajouter à ma wishlist"
+                      : "Ajouter à ma collection"}
                   </button>
                 </div>
               </div>
@@ -470,7 +588,7 @@ function removeDuplicateAlbums(albumsToClean: UserAlbum[]) {
   const uniqueAlbums = new Map<string, UserAlbum>();
 
   albumsToClean.forEach((album) => {
-    uniqueAlbums.set(album.id, album);
+    uniqueAlbums.set(album.musicBrainzId || album.id, album);
   });
 
   return Array.from(uniqueAlbums.values());
