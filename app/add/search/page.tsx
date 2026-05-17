@@ -33,7 +33,9 @@ type UserAlbum = {
   label?: string;
 };
 
-export default function SearchAlbumPage() {
+import { Suspense } from "react";
+
+function SearchAlbumContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -603,5 +605,13 @@ function Info({ label, value }: { label: string; value: string }) {
 
       <p className="text-xs font-black text-[#071f4f]">{value}</p>
     </div>
+  );
+}
+
+export default function SearchAlbumPage() {
+  return (
+    <Suspense fallback={<div>Chargement...</div>}>
+      <SearchAlbumContent />
+    </Suspense>
   );
 }
