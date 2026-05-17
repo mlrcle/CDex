@@ -2,13 +2,30 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { getCollectionStats, getUserAlbums } from "../utils/stats";
 
 export default function ProfilePage() {
   const [description, setDescription] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
 
+  const [stats, setStats] = useState({
+    cdCount: 0,
+    totalValue: 0,
+    totalDuration: 0,
+    favoriteGenre: "Aucun pour le moment",
+    favoriteArtist: "Aucun pour le moment",
+    level: 0,
+  });
+
   useEffect(() => {
-    const savedDescription = localStorage.getItem("cdex-profile-description");
+    const albums = getUserAlbums();
+    setStats(getCollectionStats(albums));
+  }, []);
+
+  useEffect(() => {
+    const savedDescription = localStorage.getItem(
+      "cdex-profile-description"
+    );
 
     if (savedDescription) {
       setDescription(savedDescription);
@@ -20,7 +37,10 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!isLoaded) return;
 
-    localStorage.setItem("cdex-profile-description", description);
+    localStorage.setItem(
+      "cdex-profile-description",
+      description
+    );
   }, [description, isLoaded]);
 
   return (
@@ -40,10 +60,25 @@ export default function ProfilePage() {
       </section>
 
       <section className="mt-6 grid grid-cols-2 gap-4">
-        <StatCard label="CD ajoutés" value="0" />
-        <StatCard label="Niveau" value="0" />
-        <StatCard label="Durée totale" value="0 min" />
-        <StatCard label="Valeur estimée" value="0 €" />
+        <StatCard
+          label="CD ajoutés"
+          value={String(stats.cdCount)}
+        />
+
+        <StatCard
+          label="Niveau"
+          value={String(stats.level)}
+        />
+
+        <StatCard
+          label="Durée totale"
+          value={`${stats.totalDuration} min`}
+        />
+
+        <StatCard
+          label="Valeur estimée"
+          value={`${stats.totalValue} €`}
+        />
       </section>
 
       <section className="mt-6 rounded-[2rem] border border-blue-100/60 bg-white/80 p-6 shadow-lg">
@@ -70,17 +105,26 @@ export default function ProfilePage() {
         </h2>
 
         <div className="mt-5 grid gap-3">
-          <PreferenceCard title="Genre favori" value="Aucun pour le moment" />
-          <PreferenceCard title="Artiste favori" value="Aucun pour le moment" />
+          <PreferenceCard
+            title="Genre favori"
+            value={stats.favoriteGenre}
+          />
+
+          <PreferenceCard
+            title="Artiste favori"
+            value={stats.favoriteArtist}
+          />
         </div>
 
         <p className="mt-4 text-xs font-bold text-blue-400">
-          Ces données seront calculées automatiquement à partir de ta collection.
+          Ces données sont calculées automatiquement à partir de ta collection.
         </p>
       </section>
 
       <section className="mt-6 rounded-[2rem] border border-blue-100/60 bg-white/80 p-6 shadow-lg">
-        <h2 className="text-2xl font-black text-[#2155ff]">Amis</h2>
+        <h2 className="text-2xl font-black text-[#2155ff]">
+          Amis
+        </h2>
 
         <div className="mt-5 rounded-[1.5rem] border border-dashed border-blue-200 bg-blue-50/70 p-5 text-center">
           <p className="text-sm font-bold text-[#5e6b85]">
@@ -115,7 +159,13 @@ export default function ProfilePage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
   return (
     <div className="rounded-3xl border border-blue-100 bg-white/80 p-5 shadow">
       <p className="text-xs font-bold uppercase tracking-wide text-[#5e6b85]">
@@ -129,7 +179,13 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PreferenceCard({ title, value }: { title: string; value: string }) {
+function PreferenceCard({
+  title,
+  value,
+}: {
+  title: string;
+  value: string;
+}) {
   return (
     <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
       <p className="text-xs font-bold uppercase tracking-wide text-[#5e6b85]">

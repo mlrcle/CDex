@@ -1,11 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getCollectionStats, getUserAlbums } from "./utils/stats";
 
 export default function Home() {
   const [addOpen, setAddOpen] = useState(false);
   const [listenOpen, setListenOpen] = useState(false);
+
+  const [stats, setStats] = useState({
+    cdCount: 0,
+    totalValue: 0,
+  });
+
+  useEffect(() => {
+    const albums = getUserAlbums();
+    const calculatedStats = getCollectionStats(albums);
+
+    setStats({
+      cdCount: calculatedStats.cdCount,
+      totalValue: calculatedStats.totalValue,
+    });
+  }, []);
 
   return (
     <main className="mx-auto max-w-md px-5 py-6">
@@ -36,15 +52,24 @@ export default function Home() {
           {addOpen && (
             <div className="rounded-3xl border border-blue-100 bg-white p-4 shadow-xl">
               <div className="flex flex-col gap-3">
-                <Link href="/add" className="rounded-2xl bg-blue-50 px-5 py-3 font-bold text-blue-700">
+                <Link
+                  href="/scan"
+                  className="rounded-2xl bg-blue-50 px-5 py-3 font-bold text-blue-700"
+                >
                   Scanner un CD
                 </Link>
 
-                <Link href="/add" className="rounded-2xl bg-blue-50 px-5 py-3 font-bold text-blue-700">
+                <Link
+                  href="/add?mode=manual"
+                  className="rounded-2xl bg-blue-50 px-5 py-3 font-bold text-blue-700"
+                >
                   Ajouter manuellement
                 </Link>
 
-                <Link href="/add" className="rounded-2xl bg-blue-50 px-5 py-3 font-bold text-blue-700">
+                <Link
+                  href="/add/search"
+                  className="rounded-2xl bg-blue-50 px-5 py-3 font-bold text-blue-700"
+                >
                   Rechercher un album
                 </Link>
               </div>
@@ -85,9 +110,7 @@ export default function Home() {
       </section>
 
       <section className="mt-6 rounded-[2rem] border border-blue-100/50 bg-white/75 p-6 shadow-lg">
-        <h2 className="text-2xl font-black text-[#2155ff]">
-          Mon profil
-        </h2>
+        <h2 className="text-2xl font-black text-[#2155ff]">Mon profil</h2>
 
         <p className="mt-2 text-sm leading-6 text-[#5e6b85]">
           Résumé rapide de ta collection.
@@ -100,7 +123,7 @@ export default function Home() {
             </p>
 
             <p className="mt-2 text-4xl font-black text-[#2155ff]">
-              0
+              {stats.cdCount}
             </p>
           </div>
 
@@ -110,33 +133,29 @@ export default function Home() {
             </p>
 
             <p className="mt-2 text-4xl font-black text-[#2155ff]">
-              0€
+              {stats.totalValue}€
             </p>
           </div>
         </div>
       </section>
-<section className="mt-6">
-  <Link
-    href="/wishlist"
-    className="block rounded-[2rem] border border-blue-100 bg-white/80 px-6 py-5 text-center shadow-lg"
-  >
-    <p className="text-sm font-bold uppercase tracking-widest text-blue-500">
-      Wishlist
-    </p>
 
-    <h2 className="mt-2 text-2xl font-black text-[#2155ff]">
-      Voir ma wishlist
-    </h2>
+      <section className="mt-6">
+        <Link
+          href="/wishlist"
+          className="block rounded-[2rem] border border-blue-100 bg-white/80 px-6 py-5 text-center shadow-lg"
+        >
+          <p className="text-sm font-bold uppercase tracking-widest text-blue-500">
+            Wishlist
+          </p>
 
-    <p className="mt-2 text-sm leading-6 text-[#5e6b85]">
-      Retrouve les albums que tu recherches ou souhaites ajouter plus tard.
-    </p>
-  </Link>
-</section>
-      <section className="mt-6 rounded-[2rem] border border-dashed border-blue-200 bg-white/50 p-6 text-center">
-        <p className="text-sm font-semibold text-[#5e6b85]">
-          Les derniers albums ajoutés, raretés et statistiques apparaîtront quand ta collection commencera à se remplir.
-        </p>
+          <h2 className="mt-2 text-2xl font-black text-[#2155ff]">
+            Voir ma wishlist
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-[#5e6b85]">
+            Retrouve les albums que tu recherches ou souhaites ajouter plus tard.
+          </p>
+        </Link>
       </section>
     </main>
   );

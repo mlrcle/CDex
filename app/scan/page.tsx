@@ -2,8 +2,11 @@
 
 import { Html5QrcodeScanner } from "html5-qrcode";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function ScanPage() {
+  const router = useRouter();
+
   const [result, setResult] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -122,6 +125,14 @@ export default function ScanPage() {
     setMessage(`${album.title} a bien été ajouté à ta collection.`);
   }
 
+  function openAlbumPreview() {
+    if (!album) return;
+
+    sessionStorage.setItem("cdex-preview-album", JSON.stringify(album));
+
+    router.push(`/album/${album.id}`);
+  }
+
   function resetScan() {
     setAlbum(null);
     setResult("");
@@ -213,15 +224,22 @@ export default function ScanPage() {
             </p>
 
             <button
-              onClick={addAlbum}
+              onClick={openAlbumPreview}
               className="mt-5 w-full rounded-2xl bg-[#2155ff] px-5 py-4 text-lg font-black text-white"
+            >
+              Voir la fiche album
+            </button>
+
+            <button
+              onClick={addAlbum}
+              className="mt-3 w-full rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-lg font-black text-[#2155ff]"
             >
               Ajouter à ma collection
             </button>
 
             <button
               onClick={resetScan}
-              className="mt-3 w-full rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-lg font-black text-[#2155ff]"
+              className="mt-3 w-full rounded-2xl border border-blue-100 bg-white px-5 py-4 text-lg font-black text-[#2155ff]"
             >
               Scanner un autre CD
             </button>
