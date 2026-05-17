@@ -1,0 +1,38 @@
+export const albums = [
+  {
+    id: "1",
+    title: "Discovery",
+    artist: "Daft Punk",
+    year: 2001,
+    discovered: true,
+    rare: true,
+    cover: "https://upload.wikimedia.org/wikipedia/en/a/ae/Daft_Punk_-_Discovery.jpg",
+  },
+  {
+    id: "2",
+    title: "Nevermind",
+    artist: "Nirvana",
+    year: 1991,
+    discovered: true,
+    rare: false,
+    cover: "https://upload.wikimedia.org/wikipedia/en/b/b7/NirvanaNevermindalbumcover.jpg",
+  },
+  {
+    id: "3",
+    title: "OK Computer",
+    artist: "Radiohead",
+    year: 1997,
+    discovered: true,
+    rare: false,
+    cover: "https://upload.wikimedia.org/wikipedia/en/b/ba/Radioheadokcomputer.png",
+  },
+  {
+    id: "4",
+    title: "Album inconnu",
+    artist: "Non découvert",
+    year: 0,
+    discovered: false,
+    rare: false,
+    cover: "",
+  },
+];
