@@ -163,9 +163,12 @@ export default function AddPage() {
 
         {mode === "choices" && (
           <div className="mt-8 flex flex-col gap-3">
-            <button className="rounded-2xl bg-[#2155ff]/40 px-6 py-4 text-lg font-black text-white">
-              Scanner un CD — bientôt
-            </button>
+            <a
+  href="/scan"
+  className="rounded-2xl bg-[#2155ff] px-6 py-4 text-center text-lg font-black text-white shadow-[0_8px_30px_rgba(33,85,255,0.35)]"
+>
+  Scanner un CD
+</a>
 
             <button
               onClick={() => setMode("manual")}
@@ -174,9 +177,12 @@ export default function AddPage() {
               Ajouter manuellement
             </button>
 
-            <button className="rounded-2xl border border-blue-200 bg-white px-6 py-4 text-lg font-black text-[#2155ff]">
-              Rechercher un album — bientôt
-            </button>
+            <a
+  href="/add/search"
+  className="rounded-2xl border border-blue-200 bg-white px-6 py-4 text-center text-lg font-black text-[#2155ff]"
+>
+  Rechercher un album
+</a>
           </div>
         )}
 

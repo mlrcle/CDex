@@ -28,17 +28,21 @@ export default function CollectionPage() {
   const [userAlbums, setUserAlbums] = useState<Album[]>([]);
 
   useEffect(() => {
-    const savedFavorites = localStorage.getItem("cdex-favorites");
-    const savedUserAlbums = localStorage.getItem("cdex-user-albums");
+  const savedFavorites = localStorage.getItem("cdex-favorites");
+  const savedUserAlbums = localStorage.getItem("cdex-user-albums");
 
-    if (savedFavorites) {
-      setFavorites(JSON.parse(savedFavorites));
-    }
+  if (savedFavorites) {
+    setFavorites(JSON.parse(savedFavorites));
+  }
 
-    if (savedUserAlbums) {
-      setUserAlbums(JSON.parse(savedUserAlbums));
-    }
-  }, []);
+  if (savedUserAlbums) {
+    const parsedAlbums = JSON.parse(savedUserAlbums);
+    const cleanedAlbums = removeDuplicateAlbums(parsedAlbums);
+
+    localStorage.setItem("cdex-user-albums", JSON.stringify(cleanedAlbums));
+    setUserAlbums(cleanedAlbums);
+  }
+}, []);
 
   function toggleFavorite(id: string) {
     setFavorites((current) => {
@@ -221,4 +225,17 @@ export default function CollectionPage() {
       </section>
     </main>
   );
+}
+function removeDuplicateAlbums(albumsToClean: Album[]) {
+  const uniqueAlbums = new Map<string, Album>();
+
+  albumsToClean.forEach((album) => {
+    const key = album.musicBrainzId || album.id || `${album.title}-${album.artist}`.toLowerCase();
+
+    if (!uniqueAlbums.has(key)) {
+      uniqueAlbums.set(key, album);
+    }
+  });
+
+  return Array.from(uniqueAlbums.values());
 }

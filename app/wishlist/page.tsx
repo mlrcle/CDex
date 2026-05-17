@@ -1,8 +1,20 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function WishlistPage() {
+  const router = useRouter();
+
   return (
     <main className="mx-auto max-w-md px-5 py-6">
+      <button
+        onClick={() => router.back()}
+        className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-blue-100 bg-white/90 text-2xl font-black text-[#2155ff] shadow"
+      >
+        ←
+      </button>
+
       <section className="rounded-[2.2rem] border border-blue-100/60 bg-white/80 p-7 shadow-[0_10px_40px_rgba(80,120,255,0.12)]">
         <p className="mb-2 text-sm font-bold uppercase tracking-widest text-blue-500">
           Wishlist
@@ -32,10 +44,10 @@ export default function WishlistPage() {
           </button>
 
           <Link
-            href="/"
+            href="/collection"
             className="rounded-2xl border border-blue-100 bg-[#edf5ff] px-6 py-4 text-center text-lg font-black text-[#2155ff]"
           >
-            Retour accueil
+            Voir la collection
           </Link>
         </div>
       </section>
