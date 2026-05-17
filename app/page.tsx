@@ -35,7 +35,7 @@ export default function Home() {
         </h1>
 
         <p className="mt-6 text-base leading-7 text-[#5e6b85]">
-          Le Pokédex moderne pour scanner, classer et admirer ta collection de CD.
+          Le Pokédex  pour scanner, classer et admirer ta collection de CD.
         </p>
 
         <div className="relative mt-8 flex flex-col gap-3">
