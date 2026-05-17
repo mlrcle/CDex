@@ -18,6 +18,7 @@ type Album = {
   estimatedValue?: string;
   addedAt?: string;
   tracks?: string[];
+  musicBrainzId?: string;
   source?: "manual" | "search" | "scan" | "database";
 };
 
