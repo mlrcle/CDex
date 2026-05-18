@@ -1,21 +1,66 @@
 "use client";
 
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
-import { useEffect, useRef, useState } from "react";
+import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
+import {
+  BarcodeFormat,
+  DecodeHintType,
+  NotFoundException,
+} from "@zxing/library";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+
+type Album = {
+  id: string;
+  title: string;
+  artist: string;
+  year: number;
+  genre: string;
+  duration: string;
+  estimatedValue: string;
+  cover: string;
+  addedAt: string;
+  discovered: boolean;
+  rarity: string;
+  tracks: string[];
+  source: "scan";
+  musicBrainzId: string;
+};
 
 export default function ScanPage() {
   const router = useRouter();
 
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
 
   const [result, setResult] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [album, setAlbum] = useState<any>(null);
+  const [album, setAlbum] = useState<Album | null>(null);
   const [message, setMessage] = useState("");
   const [cameraStarted, setCameraStarted] = useState(false);
+  const [scanningPaused, setScanningPaused] = useState(false);
+
+  const reader = useMemo(() => {
+    const hints = new Map();
+
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.EAN_13,
+      BarcodeFormat.EAN_8,
+      BarcodeFormat.UPC_A,
+      BarcodeFormat.UPC_E,
+      BarcodeFormat.CODE_128,
+      BarcodeFormat.CODE_39,
+      BarcodeFormat.QR_CODE,
+    ]);
+
+    hints.set(DecodeHintType.TRY_HARDER, true);
+
+    return new BrowserMultiFormatReader(hints, {
+      delayBetweenScanAttempts: 120,
+      delayBetweenScanSuccess: 500,
+    });
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -24,70 +69,61 @@ export default function ScanPage() {
   }, []);
 
   async function startScanner() {
+    if (!videoRef.current) return;
+
     setMessage("");
     setAlbum(null);
+    setResult("");
+    setScanningPaused(false);
 
     try {
-      const scanner = new Html5Qrcode("reader", {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.QR_CODE,
-        ],
-        verbose: false,
-      });
-
-      scannerRef.current = scanner;
-
-      await scanner.start(
-        { facingMode: "environment" },
+      const controls = await reader.decodeFromConstraints(
         {
-          fps: 15,
-          qrbox: {
-            width: 320,
-            height: 180,
+          audio: false,
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
           },
-          aspectRatio: 1.777,
-          disableFlip: false,
         },
-        async (decodedText) => {
-          const cleanedCode = cleanBarcode(decodedText);
+        videoRef.current,
+        async (scanResult, error) => {
+          if (scanningPaused) return;
 
-          if (!cleanedCode) return;
+          if (scanResult) {
+            const cleanedCode = cleanBarcode(scanResult.getText());
 
-          await stopScanner();
+            if (!cleanedCode || cleanedCode.length < 8) return;
 
-          setResult(cleanedCode);
-          await searchBarcode(cleanedCode);
-        },
-        () => {}
+            setScanningPaused(true);
+            setResult(cleanedCode);
+
+            await stopScanner();
+            await searchBarcode(cleanedCode);
+          }
+
+          if (error && !(error instanceof NotFoundException)) {
+            console.log(error);
+          }
+        }
       );
 
+      controlsRef.current = controls;
       setCameraStarted(true);
     } catch {
       setMessage(
-        "Impossible d’ouvrir la caméra. Vérifie les autorisations ou essaie avec une photo."
+        "Impossible d’ouvrir la caméra. Vérifie l’autorisation caméra ou essaie avec une photo."
       );
+      setCameraStarted(false);
     }
   }
 
   async function stopScanner() {
     try {
-      if (scannerRef.current) {
-        const state = scannerRef.current.getState();
-
-        if (state === 2) {
-          await scannerRef.current.stop();
-        }
-
-        await scannerRef.current.clear();
-        scannerRef.current = null;
-      }
+      controlsRef.current?.stop();
+      controlsRef.current = null;
     } catch {
-      scannerRef.current = null;
+      controlsRef.current = null;
     }
 
     setCameraStarted(false);
@@ -98,29 +134,16 @@ export default function ScanPage() {
 
     setMessage("");
     setAlbum(null);
+    setResult("");
+
+    const imageUrl = URL.createObjectURL(file);
 
     try {
-      const scanner = new Html5Qrcode("file-reader", {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.QR_CODE,
-        ],
-        verbose: false,
-      });
+      const scanResult = await reader.decodeFromImageUrl(imageUrl);
+      const cleanedCode = cleanBarcode(scanResult.getText());
 
-      const decodedText = await scanner.scanFile(file, true);
-      const cleanedCode = cleanBarcode(decodedText);
-
-      await scanner.clear();
-
-      if (!cleanedCode) {
-        setMessage(
-          "Aucun code-barres lisible trouvé sur cette image."
-        );
+      if (!cleanedCode || cleanedCode.length < 8) {
+        setMessage("Aucun code-barres lisible trouvé sur cette image.");
         return;
       }
 
@@ -128,8 +151,10 @@ export default function ScanPage() {
       await searchBarcode(cleanedCode);
     } catch {
       setMessage(
-        "Impossible de lire le code sur cette photo. Essaie une photo plus nette, bien éclairée, avec le code-barres droit."
+        "Code non lu sur cette photo. Essaie une photo plus proche, nette, droite, avec le code-barres qui prend presque toute l’image."
       );
+    } finally {
+      URL.revokeObjectURL(imageUrl);
     }
   }
 
@@ -158,7 +183,7 @@ export default function ScanPage() {
 
       if (!data.releases || data.releases.length === 0) {
         setMessage(
-          `Code détecté : ${barcode}. Aucun album trouvé dans MusicBrainz pour ce code-barres.`
+          `Code détecté : ${barcode}. Aucun album trouvé dans MusicBrainz.`
         );
         return;
       }
@@ -170,13 +195,11 @@ export default function ScanPage() {
           ?.map((artist: any) => artist.name)
           .join(", ") || "Artiste inconnu";
 
-      const newAlbum = {
+      const newAlbum: Album = {
         id: release.id,
         title: release.title,
         artist,
-        year: release.date
-          ? Number(release.date.slice(0, 4)) || 0
-          : 0,
+        year: release.date ? Number(release.date.slice(0, 4)) || 0 : 0,
         genre: "Non renseigné",
         duration: "Non renseignée",
         estimatedValue: "Non estimée",
@@ -224,11 +247,7 @@ export default function ScanPage() {
   function openAlbumPreview() {
     if (!album) return;
 
-    sessionStorage.setItem(
-      "cdex-preview-album",
-      JSON.stringify(album)
-    );
-
+    sessionStorage.setItem("cdex-preview-album", JSON.stringify(album));
     router.push(`/album/${album.id}`);
   }
 
@@ -237,6 +256,7 @@ export default function ScanPage() {
     setResult("");
     setMessage("");
     setManualCode("");
+    setScanningPaused(false);
     await stopScanner();
   }
 
@@ -252,16 +272,22 @@ export default function ScanPage() {
         </h1>
 
         <p className="mt-5 text-base leading-7 text-[#5e6b85]">
-          Scanne le code-barres du CD ou importe une photo nette du code.
+          Utilise la caméra, une photo ou entre le code-barres manuellement.
         </p>
 
         {!album && (
           <>
             <div className="mt-6 rounded-[2rem] border border-blue-100 bg-blue-50/70 p-4">
-              <div
-                id="reader"
-                className="overflow-hidden rounded-2xl bg-black"
-              />
+              <div className="relative overflow-hidden rounded-2xl bg-black">
+                <video
+                  ref={videoRef}
+                  muted
+                  playsInline
+                  className="h-72 w-full object-cover"
+                />
+
+                <div className="pointer-events-none absolute inset-x-8 top-1/2 h-28 -translate-y-1/2 rounded-xl border-4 border-white/80 shadow-[0_0_0_999px_rgba(0,0,0,0.35)]" />
+              </div>
 
               {!cameraStarted ? (
                 <button
@@ -278,6 +304,10 @@ export default function ScanPage() {
                   Fermer la caméra
                 </button>
               )}
+
+              <p className="mt-3 text-xs font-bold text-[#5e6b85]">
+                Astuce : rapproche le code-barres jusqu’à ce qu’il remplisse le cadre blanc.
+              </p>
             </div>
 
             <div className="mt-5 rounded-[2rem] border border-blue-100 bg-white/80 p-5 shadow">
@@ -286,7 +316,7 @@ export default function ScanPage() {
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-[#5e6b85]">
-                Prends une photo bien nette du code-barres.
+                La photo doit être nette, droite, et le code-barres doit prendre beaucoup de place.
               </p>
 
               <button
@@ -301,12 +331,8 @@ export default function ScanPage() {
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(event) =>
-                  scanImageFile(event.target.files?.[0])
-                }
+                onChange={(event) => scanImageFile(event.target.files?.[0])}
               />
-
-              <div id="file-reader" className="hidden" />
             </div>
 
             <div className="mt-5 rounded-[2rem] border border-blue-100 bg-white/80 p-5 shadow">
@@ -318,6 +344,7 @@ export default function ScanPage() {
                 value={manualCode}
                 onChange={(event) => setManualCode(event.target.value)}
                 placeholder="Ex : 0602537351057"
+                inputMode="numeric"
                 className="mt-4 w-full rounded-2xl border border-blue-100 bg-white px-5 py-4 text-sm font-semibold outline-none"
               />
 
