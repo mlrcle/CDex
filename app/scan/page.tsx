@@ -1,43 +1,132 @@
 "use client";
 
-import { Html5QrcodeScanner } from "html5-qrcode";
-import { useEffect, useState } from "react";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function ScanPage() {
   const router = useRouter();
+
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [result, setResult] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [album, setAlbum] = useState<any>(null);
   const [message, setMessage] = useState("");
+  const [cameraStarted, setCameraStarted] = useState(false);
 
   useEffect(() => {
-    startScanner();
+    return () => {
+      stopScanner();
+    };
   }, []);
 
-  function startScanner() {
-    const scanner = new Html5QrcodeScanner(
-      "reader",
-      {
-        fps: 10,
-        qrbox: {
-          width: 250,
-          height: 150,
-        },
-      },
-      false
-    );
+  async function startScanner() {
+    setMessage("");
+    setAlbum(null);
 
-    scanner.render(
-      async (decodedText) => {
-        await scanner.clear();
-        setResult(decodedText);
-        await searchBarcode(decodedText);
-      },
-      () => {}
-    );
+    try {
+      const scanner = new Html5Qrcode("reader", {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.QR_CODE,
+        ],
+      });
+
+      scannerRef.current = scanner;
+
+      await scanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 15,
+          qrbox: {
+            width: 320,
+            height: 180,
+          },
+          aspectRatio: 1.777,
+          disableFlip: false,
+        },
+        async (decodedText) => {
+          const cleanedCode = cleanBarcode(decodedText);
+
+          if (!cleanedCode) return;
+
+          await stopScanner();
+
+          setResult(cleanedCode);
+          await searchBarcode(cleanedCode);
+        },
+        () => {}
+      );
+
+      setCameraStarted(true);
+    } catch {
+      setMessage(
+        "Impossible d’ouvrir la caméra. Vérifie les autorisations ou essaie avec une photo."
+      );
+    }
+  }
+
+  async function stopScanner() {
+    try {
+      if (scannerRef.current) {
+        const state = scannerRef.current.getState();
+
+        if (state === 2) {
+          await scannerRef.current.stop();
+        }
+
+        await scannerRef.current.clear();
+        scannerRef.current = null;
+      }
+    } catch {
+      scannerRef.current = null;
+    }
+
+    setCameraStarted(false);
+  }
+
+  async function scanImageFile(file: File | undefined) {
+    if (!file) return;
+
+    setMessage("");
+    setAlbum(null);
+
+    try {
+      const scanner = new Html5Qrcode("file-reader", {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.QR_CODE,
+        ],
+      });
+
+      const decodedText = await scanner.scanFile(file, true);
+      const cleanedCode = cleanBarcode(decodedText);
+
+      await scanner.clear();
+
+      if (!cleanedCode) {
+        setMessage("Aucun code-barres lisible trouvé sur cette image.");
+        return;
+      }
+
+      setResult(cleanedCode);
+      await searchBarcode(cleanedCode);
+    } catch {
+      setMessage(
+        "Impossible de lire le code sur cette photo. Essaie une photo plus nette, bien éclairée, avec le code-barres droit."
+      );
+    }
   }
 
   function cleanBarcode(code: string) {
@@ -48,7 +137,7 @@ export default function ScanPage() {
     const barcode = cleanBarcode(rawBarcode);
 
     if (!barcode) {
-      setMessage("Code invalide. Essaie avec un vrai code-barres de CD.");
+      setMessage("Code invalide.");
       return;
     }
 
@@ -129,18 +218,15 @@ export default function ScanPage() {
     if (!album) return;
 
     sessionStorage.setItem("cdex-preview-album", JSON.stringify(album));
-
     router.push(`/album/${album.id}`);
   }
 
-  function resetScan() {
+  async function resetScan() {
     setAlbum(null);
     setResult("");
     setMessage("");
-
-    setTimeout(() => {
-      startScanner();
-    }, 200);
+    setManualCode("");
+    await stopScanner();
   }
 
   return (
@@ -155,13 +241,81 @@ export default function ScanPage() {
         </h1>
 
         <p className="mt-5 text-base leading-7 text-[#5e6b85]">
-          Scanne le code-barres du CD pour tenter de retrouver automatiquement l’album.
+          Scanne le code-barres du CD ou importe une photo nette du code.
         </p>
 
         {!album && (
-          <div className="mt-6 overflow-hidden rounded-3xl border border-blue-100 bg-white p-3">
-            <div id="reader" />
-          </div>
+          <>
+            <div className="mt-6 rounded-[2rem] border border-blue-100 bg-blue-50/70 p-4">
+              <div
+                id="reader"
+                className="overflow-hidden rounded-2xl bg-black"
+              />
+
+              {!cameraStarted ? (
+                <button
+                  onClick={startScanner}
+                  className="mt-4 w-full rounded-2xl bg-[#2155ff] px-5 py-4 text-lg font-black text-white"
+                >
+                  Ouvrir la caméra
+                </button>
+              ) : (
+                <button
+                  onClick={stopScanner}
+                  className="mt-4 w-full rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-lg font-black text-red-500"
+                >
+                  Fermer la caméra
+                </button>
+              )}
+            </div>
+
+            <div className="mt-5 rounded-[2rem] border border-blue-100 bg-white/80 p-5 shadow">
+              <h2 className="text-xl font-black text-[#2155ff]">
+                Scanner depuis une photo
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-[#5e6b85]">
+                Prends une photo bien nette du code-barres, droite et sans reflet.
+              </p>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-4 w-full rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-lg font-black text-[#2155ff]"
+              >
+                Choisir une photo
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => scanImageFile(event.target.files?.[0])}
+              />
+
+              <div id="file-reader" className="hidden" />
+            </div>
+
+            <div className="mt-5 rounded-[2rem] border border-blue-100 bg-white/80 p-5 shadow">
+              <h2 className="text-xl font-black text-[#2155ff]">
+                Entrer le code manuellement
+              </h2>
+
+              <input
+                value={manualCode}
+                onChange={(event) => setManualCode(event.target.value)}
+                placeholder="Ex : 0602537351057"
+                className="mt-4 w-full rounded-2xl border border-blue-100 bg-white px-5 py-4 text-sm font-semibold outline-none"
+              />
+
+              <button
+                onClick={() => searchBarcode(manualCode)}
+                className="mt-3 w-full rounded-2xl bg-[#2155ff] px-5 py-4 text-lg font-black text-white"
+              >
+                Rechercher ce code
+              </button>
+            </div>
+          </>
         )}
 
         {loading && (
@@ -172,7 +326,7 @@ export default function ScanPage() {
 
         {result && (
           <p className="mt-5 text-xs font-bold text-slate-400">
-            Code détecté : {cleanBarcode(result)}
+            Code détecté : {result}
           </p>
         )}
 
@@ -180,24 +334,6 @@ export default function ScanPage() {
           <p className="mt-5 rounded-2xl bg-blue-50 px-5 py-4 text-sm font-bold text-[#2155ff]">
             {message}
           </p>
-        )}
-
-        {!album && (
-          <div className="mt-6">
-            <input
-              value={manualCode}
-              onChange={(event) => setManualCode(event.target.value)}
-              placeholder="Tester un code-barres manuellement"
-              className="w-full rounded-2xl border border-blue-100 bg-white px-5 py-4 text-sm font-semibold outline-none"
-            />
-
-            <button
-              onClick={() => searchBarcode(manualCode)}
-              className="mt-3 w-full rounded-2xl bg-[#2155ff] px-5 py-4 text-lg font-black text-white"
-            >
-              Rechercher ce code
-            </button>
-          </div>
         )}
       </section>
 
