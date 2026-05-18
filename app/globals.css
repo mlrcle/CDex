@@ -37,3 +37,387 @@ button {
 main {
   padding-bottom: 96px;
 }
+:root {
+  --cdex-blue: #2155ff;
+  --cdex-blue-light: #7db7ff;
+  --cdex-bg: #f8fbff;
+  --cdex-bg-soft: #dff1ff;
+  --cdex-red: #ff4b4b;
+  --cdex-yellow: #ffd84d;
+  --cdex-purple: #7c5cff;
+  --cdex-cyan: #00d4ff;
+  --cdex-text: #071f4f;
+  --cdex-muted: #5e6b85;
+}
+
+/* Fond général premium */
+body {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(125, 183, 255, 0.28), transparent 30%),
+    linear-gradient(180deg, #ffffff 0%, var(--cdex-bg) 55%, #edf7ff 100%) !important;
+  color: var(--cdex-text);
+}
+
+/* Texture très légère rétro */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(33, 85, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(33, 85, 255, 0.035) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.35), transparent 70%);
+}
+
+/* Toutes les grosses sections deviennent plus premium */
+section {
+  border-radius: 2rem;
+  border-color: rgba(125, 183, 255, 0.28) !important;
+  box-shadow:
+    0 14px 35px rgba(33, 85, 255, 0.10),
+    inset 0 1px 0 rgba(255,255,255,0.85);
+  backdrop-filter: blur(18px);
+}
+
+/* Boutons bleus plus app premium */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button[class*="bg-[#2155ff]"],
+a[class*="bg-[#2155ff]"] {
+  background: linear-gradient(180deg, #2f67ff 0%, #1247f4 100%) !important;
+  box-shadow:
+    0 10px 22px rgba(33, 85, 255, 0.28),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+}
+
+/* Boutons secondaires doux */
+button[class*="bg-blue-50"],
+a[class*="bg-blue-50"],
+button[class*="bg-[#edf5ff]"],
+a[class*="bg-[#edf5ff]"] {
+  background: linear-gradient(180deg, #f7fbff 0%, #eaf4ff 100%) !important;
+}
+
+/* Inputs plus propres */
+input,
+textarea,
+select {
+  background: rgba(255,255,255,0.88) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+/* Cartes album : aspect collection premium */
+article {
+  border-radius: 1.7rem !important;
+  border-color: rgba(125, 183, 255, 0.28) !important;
+  box-shadow:
+    0 12px 28px rgba(7, 31, 79, 0.10),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+  overflow: hidden;
+}
+
+/* Images albums plus clean */
+article img {
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+article:active img {
+  transform: scale(1.035);
+}
+
+/* Albums non découverts / images manquantes : gris mais visibles */
+.cdex-undiscovered,
+article:has(img[style*="display: none"]) {
+  background:
+    radial-gradient(circle at 50% 35%, rgba(255,255,255,0.5), transparent 32%),
+    linear-gradient(145deg, #d8e1ec 0%, #aeb8c6 100%) !important;
+  filter: grayscale(0.7);
+  opacity: 0.82;
+}
+
+/* Effet holo pour raretés */
+.cdex-holo {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid rgba(0, 212, 255, 0.5) !important;
+  box-shadow:
+    0 0 18px rgba(0, 212, 255, 0.25),
+    0 0 28px rgba(255, 110, 199, 0.18);
+}
+
+.cdex-holo::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255,255,255,0.55) 35%,
+    rgba(0,212,255,0.35) 45%,
+    rgba(255,110,199,0.35) 55%,
+    transparent 70%
+  );
+  transform: rotate(18deg);
+  animation: holoSweep 4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes holoSweep {
+  from {
+    translate: -45% 0;
+  }
+  to {
+    translate: 45% 0;
+  }
+}
+
+/* Petits badges façon collection */
+.cdex-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  background: #edf5ff;
+  color: var(--cdex-blue);
+  border: 1px solid rgba(33, 85, 255, 0.16);
+}
+
+.cdex-badge-rare {
+  background: #fff4bf;
+  color: #b98600;
+  border-color: rgba(255, 216, 77, 0.7);
+}
+
+.cdex-badge-legendary {
+  background: linear-gradient(90deg, #7c5cff, #00d4ff, #ff6ec7);
+  color: white;
+}
+
+/* Petit effet pixel discret */
+.cdex-pixel {
+  image-rendering: pixelated;
+  text-shadow: 1px 1px 0 rgba(33, 85, 255, 0.12);
+}
+
+/* Bottom nav premium */
+nav.fixed {
+  background: rgba(255,255,255,0.88) !important;
+  backdrop-filter: blur(22px);
+  border-color: rgba(125, 183, 255, 0.28) !important;
+  box-shadow: 0 -10px 28px rgba(33, 85, 255, 0.10);
+}
+
+/* Bouton + central */
+
+
+
+/* Bouton paramètres */
+button.fixed.right-5.top-4 {
+  background: rgba(255,255,255,0.9) !important;
+  box-shadow:
+    0 10px 24px rgba(33, 85, 255, 0.18),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+/* Version téléphone : plus proche de la maquette */
+@media (max-width: 520px) {
+  main {
+    padding-left: 1.1rem !important;
+    padding-right: 1.1rem !important;
+  }
+
+  h1 {
+    letter-spacing: -0.04em;
+  }
+
+  section {
+    border-radius: 2.1rem !important;
+  }
+}
+/* ========================= */
+/* CDEX - MICRO INTERACTIONS */
+/* ========================= */
+
+@keyframes cdexPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(33, 85, 255, 0.45);
+  }
+  70% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 12px rgba(33, 85, 255, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(33, 85, 255, 0);
+  }
+}
+
+.cdex-add-pulse {
+  animation: cdexPulse 2.4s infinite;
+}
+
+.cdex-glossy {
+  position: relative;
+  overflow: hidden;
+}
+
+.cdex-glossy::before {
+  content: "";
+  position: absolute;
+  top: -80%;
+  left: -80%;
+  width: 80%;
+  height: 220%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  transform: rotate(25deg);
+  transition: left 0.7s ease;
+  pointer-events: none;
+}
+
+.cdex-glossy:hover::before,
+.cdex-glossy:active::before {
+  left: 130%;
+}
+
+.cdex-tap {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
+}
+
+.cdex-tap:active {
+  transform: scale(0.96);
+  filter: brightness(1.04);
+}
+
+.cdex-card-pop {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease;
+}
+
+.cdex-card-pop:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 20px 40px rgba(33, 85, 255, 0.18);
+}
+
+.cdex-glass {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(180, 210, 255, 0.65);
+}
+
+.cdex-dynamic-blur {
+  background:
+    radial-gradient(circle at top left, rgba(33, 85, 255, 0.16), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(255, 75, 75, 0.12), transparent 35%),
+    rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(26px);
+  -webkit-backdrop-filter: blur(26px);
+}
+
+@keyframes cdexSkeleton {
+  0% {
+    background-position: -180px 0;
+  }
+  100% {
+    background-position: 180px 0;
+  }
+}
+
+.cdex-skeleton {
+  background: linear-gradient(
+    90deg,
+    #eaf2ff 0px,
+    #f7fbff 45px,
+    #eaf2ff 90px
+  );
+  background-size: 360px 100%;
+  animation: cdexSkeleton 1.25s infinite linear;
+}
+
+@keyframes cdexPageIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.cdex-page-transition {
+  animation: cdexPageIn 0.35s ease both;
+}
+
+@keyframes cdexAlbumOpen {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.92) rotateX(8deg);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0);
+    filter: blur(0);
+  }
+}
+
+.cdex-album-open {
+  transform-origin: bottom center;
+  animation: cdexAlbumOpen 0.45s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+@keyframes cdexHeroAlbumFloat {
+  0% {
+    transform: perspective(900px) rotateY(-22deg) rotateX(8deg) translateY(0px);
+  }
+  50% {
+    transform: perspective(900px) rotateY(-18deg) rotateX(6deg) translateY(-6px);
+  }
+  100% {
+    transform: perspective(900px) rotateY(-22deg) rotateX(8deg) translateY(0px);
+  }
+}
+
+.cdex-hero-album-3d {
+  animation: cdexHeroAlbumFloat 4s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+@keyframes cdexHeroAlbumFloat {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.cdex-hero-album-float {
+  animation: cdexHeroAlbumFloat 4s ease-in-out infinite;
+}
