@@ -8,7 +8,7 @@ import { getCollectionStats, getUserAlbums } from "./utils/stats";
 type Album = {
   id: string;
   title: string;
-  artist?: string;
+  artist: string;
   year?: string | number;
   cover?: string;
   image?: string;
@@ -21,6 +21,25 @@ type Album = {
   favorite?: boolean;
   estimatedValue?: number;
 };
+
+function normalizeAlbum(album: Partial<Album>): Album {
+  return {
+    id: album.id || crypto.randomUUID(),
+    title: album.title || "Album inconnu",
+    artist: album.artist || "Artiste inconnu",
+    year: album.year,
+    cover: album.cover,
+    image: album.image,
+    coverUrl: album.coverUrl,
+    imageUrl: album.imageUrl,
+    cover_url: album.cover_url,
+    image_url: album.image_url,
+    artwork: album.artwork,
+    thumbnail: album.thumbnail,
+    favorite: album.favorite,
+    estimatedValue: album.estimatedValue,
+  };
+}
 
 function getAlbumCover(album?: Album) {
   return (
@@ -46,14 +65,18 @@ export default function Home() {
   });
 
   useEffect(() => {
-    const userAlbums = getUserAlbums() as Album[];
+    const userAlbums = (getUserAlbums() as Partial<Album>[]).map(normalizeAlbum);
     const calculatedStats = getCollectionStats(userAlbums);
 
     const savedWishlist = localStorage.getItem("cdex-wishlist");
-    const parsedWishlist = savedWishlist ? JSON.parse(savedWishlist) : [];
+    const parsedWishlist = savedWishlist
+      ? (JSON.parse(savedWishlist) as Partial<Album>[]).map(normalizeAlbum)
+      : [];
 
     const savedFavorites = localStorage.getItem("cdex-favorites");
-    const parsedFavorites = savedFavorites ? JSON.parse(savedFavorites) : [];
+    const parsedFavorites = savedFavorites
+      ? (JSON.parse(savedFavorites) as string[])
+      : [];
 
     setAlbums(userAlbums);
     setWishlistAlbums(parsedWishlist);
@@ -78,16 +101,12 @@ export default function Home() {
 
   return (
     <main className="relative mx-auto min-h-screen max-w-md overflow-hidden px-5 pb-32 pt-5">
-      {/* BACKGROUND */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#f4f8ff]">
         <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#2155ff]/20 blur-3xl" />
-
         <div className="absolute -right-24 top-64 h-80 w-80 rounded-full bg-cyan-300/25 blur-3xl" />
-
         <div className="absolute bottom-0 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-[#ff4b4b]/10 blur-3xl" />
       </div>
 
-      {/* HERO */}
       <section className="relative overflow-hidden rounded-[2.4rem] border border-white/70 bg-white/75 p-6 shadow-[0_20px_60px_rgba(33,85,255,0.16)] backdrop-blur-2xl">
         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#2155ff]/10 blur-2xl" />
 
@@ -108,11 +127,7 @@ export default function Home() {
 
         <div className="mt-7 grid grid-cols-2 gap-3">
           <StatCard label="CD possédés" value={stats.cdCount} />
-
-          <StatCard
-            label="Valeur estimée"
-            value={`${stats.totalValue} €`}
-          />
+          <StatCard label="Valeur estimée" value={`${stats.totalValue} €`} />
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
@@ -132,24 +147,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* QUICK ACTIONS */}
       <section className="mt-5 grid grid-cols-3 gap-3">
-        <QuickAction
-          href="/favorites"
-          icon="/coeur.png"
-          label="Favoris"
-        />
-
-        <QuickAction
-          href="/wishlist"
-          icon="/etoile.png"
-          label="Wishlist"
-        />
-
+        <QuickAction href="/favorites" icon="/coeur.png" label="Favoris" />
+        <QuickAction href="/wishlist" icon="/etoile.png" label="Wishlist" />
         <QuickAction href="/profile" icon="▣" label="Stats" />
       </section>
 
-      {/* RECENT ALBUMS */}
       <section className="mt-6">
         <div className="mb-3 flex items-end justify-between">
           <div>
@@ -181,7 +184,6 @@ export default function Home() {
         )}
       </section>
 
-      {/* STATS */}
       <section className="mt-6 rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-[0_15px_45px_rgba(33,85,255,0.12)] backdrop-blur-2xl">
         <div className="flex items-center justify-between">
           <div>
@@ -201,13 +203,8 @@ export default function Home() {
 
         <div className="mt-5 grid grid-cols-3 gap-3">
           <SmallStat label="Albums" value={stats.cdCount} />
-
           <SmallStat label="Favoris" value={favorites.length} />
-
-          <SmallStat
-            label="Wishlist"
-            value={wishlistAlbums.length}
-          />
+          <SmallStat label="Wishlist" value={wishlistAlbums.length} />
         </div>
 
         <Link
@@ -218,7 +215,6 @@ export default function Home() {
         </Link>
       </section>
 
-      {/* WISHLIST */}
       <section className="mt-6 rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-[0_15px_45px_rgba(33,85,255,0.12)] backdrop-blur-2xl">
         <div className="mb-4 flex items-end justify-between">
           <div>
@@ -253,10 +249,6 @@ export default function Home() {
   );
 }
 
-/* ========================= */
-/* HERO CD */
-/* ========================= */
-
 function HeroLatestAlbum({ album }: { album?: Album }) {
   const cover = getAlbumCover(album);
 
@@ -277,13 +269,7 @@ function HeroLatestAlbum({ album }: { album?: Album }) {
   );
 }
 
-function CDCase3D({
-  cover,
-  title,
-}: {
-  cover: string;
-  title: string;
-}) {
+function CDCase3D({ cover, title }: { cover: string; title: string }) {
   return (
     <div className="cdex-hero-album-float relative h-[145px] w-[170px]">
       <div className="absolute inset-0 translate-x-4 translate-y-5 rounded-[1.4rem] bg-[#2155ff]/20 blur-2xl" />
@@ -322,10 +308,6 @@ function CDCase3D({
   );
 }
 
-/* ========================= */
-/* ALBUM CARDS */
-/* ========================= */
-
 function AlbumMiniCard({ album }: { album: Album }) {
   const cover = getAlbumCover(album);
 
@@ -334,8 +316,7 @@ function AlbumMiniCard({ album }: { album: Album }) {
       href={`/album/${album.id}`}
       className="group relative overflow-hidden rounded-[1rem] border border-white/70 bg-white/90 shadow-[0_10px_28px_rgba(33,85,255,0.12)] backdrop-blur-xl transition active:scale-95"
     >
-      {/* FAVORI */}
-      <div className="absolute right-1.5 bottom-[5px] z-20 flex h-6 w-6 items-center justify-center rounded-full">
+      <div className="absolute right-1.5 bottom-[38px] z-20 flex h-6 w-6 items-center justify-center rounded-full">
         <Image
           src="/coeur.png"
           alt="Favori"
@@ -345,7 +326,6 @@ function AlbumMiniCard({ album }: { album: Album }) {
         />
       </div>
 
-      {/* COVER */}
       <div className="relative aspect-square overflow-hidden bg-blue-50">
         {cover ? (
           <Image
@@ -363,14 +343,13 @@ function AlbumMiniCard({ album }: { album: Album }) {
         <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.18),transparent_40%,rgba(255,255,255,0.1)_70%,transparent)]" />
       </div>
 
-      {/* TEXT */}
       <div className="bg-white px-2.5 pb-3 pt-2">
         <h3 className="line-clamp-1 text-[11px] font-black leading-4 text-[#071f4f]">
           {album.title}
         </h3>
 
         <p className="mt-0.5 line-clamp-1 text-[10px] font-semibold text-[#5e6b85]">
-          {album.artist || "Artiste inconnu"}
+          {album.artist}
         </p>
       </div>
     </Link>
@@ -385,8 +364,7 @@ function WishlistCard({ album }: { album: Album }) {
       href={`/album/${album.id}`}
       className="group relative min-w-[105px] overflow-hidden rounded-[1rem] border border-white/70 bg-white/90 shadow-[0_10px_28px_rgba(33,85,255,0.12)] backdrop-blur-xl transition active:scale-95"
     >
-      {/* FAVORI */}
-      <div className="absolute right-1.5 bottom-[5px] z-20 flex h-6 w-6 items-center justify-center rounded-full">
+      <div className="absolute right-1.5 bottom-[38px] z-20 flex h-6 w-6 items-center justify-center rounded-full">
         <Image
           src="/coeur.png"
           alt="Favori"
@@ -396,7 +374,6 @@ function WishlistCard({ album }: { album: Album }) {
         />
       </div>
 
-      {/* COVER */}
       <div className="relative aspect-square overflow-hidden bg-blue-50">
         {cover ? (
           <Image
@@ -414,56 +391,35 @@ function WishlistCard({ album }: { album: Album }) {
         <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.18),transparent_40%,rgba(255,255,255,0.1)_70%,transparent)]" />
       </div>
 
-      {/* TEXT */}
       <div className="bg-white px-2.5 pb-3 pt-2">
         <h3 className="line-clamp-1 text-[11px] font-black leading-4 text-[#071f4f]">
           {album.title}
         </h3>
 
         <p className="mt-0.5 line-clamp-1 text-[10px] font-semibold text-[#5e6b85]">
-          {album.artist || "Artiste inconnu"}
+          {album.artist}
         </p>
       </div>
     </Link>
   );
 }
 
-/* ========================= */
-/* UI */
-/* ========================= */
-
-function StatCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
+function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-[1.4rem] border border-blue-100/70 bg-white/70 p-4 shadow-sm backdrop-blur-xl">
       <p className="text-[10px] font-black uppercase tracking-wide text-blue-950/45">
         {label}
       </p>
 
-      <p className="mt-1 text-2xl font-black text-[#2155ff]">
-        {value}
-      </p>
+      <p className="mt-1 text-2xl font-black text-[#2155ff]">{value}</p>
     </div>
   );
 }
 
-function SmallStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
+function SmallStat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-[1.3rem] bg-blue-50/80 p-3 text-center">
-      <p className="text-lg font-black text-[#2155ff]">
-        {value}
-      </p>
+      <p className="text-lg font-black text-[#2155ff]">{value}</p>
 
       <p className="mt-1 text-[9px] font-black uppercase text-blue-950/45">
         {label}
@@ -498,15 +454,11 @@ function QuickAction({
             className="h-8 w-8 object-contain"
           />
         ) : (
-          <span className="text-xl font-black text-[#2155ff]">
-            {icon}
-          </span>
+          <span className="text-xl font-black text-[#2155ff]">{icon}</span>
         )}
       </div>
 
-      <p className="mt-2 text-[11px] font-black text-blue-950">
-        {label}
-      </p>
+      <p className="mt-2 text-[11px] font-black text-blue-950">{label}</p>
     </Link>
   );
 }
