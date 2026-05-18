@@ -9,7 +9,7 @@ type Album = {
   id: string;
   title: string;
   artist: string;
-  year?: number;
+  year: number;
   cover?: string;
   image?: string;
   coverUrl?: string;
@@ -25,23 +25,36 @@ type Album = {
 function normalizeAlbum(album: Partial<Album>): Album {
   return {
     id: album.id || crypto.randomUUID(),
+
     title: album.title || "Album inconnu",
+
     artist: album.artist || "Artiste inconnu",
+
     year:
-  typeof album.year === "number"
-    ? album.year
-    : album.year
-      ? Number(album.year)
-      : undefined,
+      typeof album.year === "number"
+        ? album.year
+        : album.year
+          ? Number(album.year)
+          : 0,
+
     cover: album.cover,
+
     image: album.image,
+
     coverUrl: album.coverUrl,
+
     imageUrl: album.imageUrl,
+
     cover_url: album.cover_url,
+
     image_url: album.image_url,
+
     artwork: album.artwork,
+
     thumbnail: album.thumbnail,
+
     favorite: album.favorite,
+
     estimatedValue: album.estimatedValue,
   };
 }
@@ -64,27 +77,38 @@ export default function Home() {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [wishlistAlbums, setWishlistAlbums] = useState<Album[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
+
   const [stats, setStats] = useState({
     cdCount: 0,
     totalValue: 0,
   });
 
   useEffect(() => {
-    const userAlbums = (getUserAlbums() as Partial<Album>[]).map(normalizeAlbum);
+    const userAlbums = (getUserAlbums() as Partial<Album>[]).map(
+      normalizeAlbum
+    );
+
     const calculatedStats = getCollectionStats(userAlbums);
 
     const savedWishlist = localStorage.getItem("cdex-wishlist");
+
     const parsedWishlist = savedWishlist
-      ? (JSON.parse(savedWishlist) as Partial<Album>[]).map(normalizeAlbum)
+      ? (JSON.parse(savedWishlist) as Partial<Album>[]).map(
+          normalizeAlbum
+        )
       : [];
 
-    const savedFavorites = localStorage.getItem("cdex-favorites");
+    const savedFavorites =
+      localStorage.getItem("cdex-favorites");
+
     const parsedFavorites = savedFavorites
       ? (JSON.parse(savedFavorites) as string[])
       : [];
 
     setAlbums(userAlbums);
+
     setWishlistAlbums(parsedWishlist);
+
     setFavorites(parsedFavorites);
 
     setStats({
@@ -93,11 +117,18 @@ export default function Home() {
     });
   }, []);
 
-  const recentAlbums = useMemo(() => albums.slice(0, 6), [albums]);
+  const recentAlbums = useMemo(
+    () => albums.slice(0, 6),
+    [albums]
+  );
 
   const latestAlbum = useMemo(() => {
     const reversed = [...albums].reverse();
-    return reversed.find((album) => getAlbumCover(album)) || reversed[0];
+
+    return (
+      reversed.find((album) => getAlbumCover(album)) ||
+      reversed[0]
+    );
   }, [albums]);
 
   const displayedWishlistAlbums = useMemo(() => {
@@ -106,12 +137,16 @@ export default function Home() {
 
   return (
     <main className="relative mx-auto min-h-screen max-w-md overflow-hidden px-5 pb-32 pt-5">
+      {/* BACKGROUND */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#f4f8ff]">
         <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#2155ff]/20 blur-3xl" />
+
         <div className="absolute -right-24 top-64 h-80 w-80 rounded-full bg-cyan-300/25 blur-3xl" />
+
         <div className="absolute bottom-0 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-[#ff4b4b]/10 blur-3xl" />
       </div>
 
+      {/* HERO */}
       <section className="relative overflow-hidden rounded-[2.4rem] border border-white/70 bg-white/75 p-6 shadow-[0_20px_60px_rgba(33,85,255,0.16)] backdrop-blur-2xl">
         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#2155ff]/10 blur-2xl" />
 
@@ -126,13 +161,20 @@ export default function Home() {
         </h1>
 
         <p className="mt-4 max-w-[250px] text-sm font-semibold leading-6 text-blue-950/55">
-          Retrouve tes albums, tes favoris, ta wishlist et les infos de ta
-          collection.
+          Retrouve tes albums, tes favoris, ta wishlist et les
+          infos de ta collection.
         </p>
 
         <div className="mt-7 grid grid-cols-2 gap-3">
-          <StatCard label="CD possédés" value={stats.cdCount} />
-          <StatCard label="Valeur estimée" value={`${stats.totalValue} €`} />
+          <StatCard
+            label="CD possédés"
+            value={stats.cdCount}
+          />
+
+          <StatCard
+            label="Valeur estimée"
+            value={`${stats.totalValue} €`}
+          />
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
@@ -152,12 +194,28 @@ export default function Home() {
         </div>
       </section>
 
+      {/* QUICK ACTIONS */}
       <section className="mt-5 grid grid-cols-3 gap-3">
-        <QuickAction href="/favorites" icon="/coeur.png" label="Favoris" />
-        <QuickAction href="/wishlist" icon="/etoile.png" label="Wishlist" />
-        <QuickAction href="/profile" icon="▣" label="Stats" />
+        <QuickAction
+          href="/favorites"
+          icon="/coeur.png"
+          label="Favoris"
+        />
+
+        <QuickAction
+          href="/wishlist"
+          icon="/etoile.png"
+          label="Wishlist"
+        />
+
+        <QuickAction
+          href="/profile"
+          icon="▣"
+          label="Stats"
+        />
       </section>
 
+      {/* RECENTS */}
       <section className="mt-6">
         <div className="mb-3 flex items-end justify-between">
           <div>
@@ -181,7 +239,10 @@ export default function Home() {
         {recentAlbums.length > 0 ? (
           <div className="grid grid-cols-3 gap-3">
             {recentAlbums.map((album) => (
-              <AlbumMiniCard key={album.id} album={album} />
+              <AlbumMiniCard
+                key={album.id}
+                album={album}
+              />
             ))}
           </div>
         ) : (
@@ -189,6 +250,7 @@ export default function Home() {
         )}
       </section>
 
+      {/* STATS */}
       <section className="mt-6 rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-[0_15px_45px_rgba(33,85,255,0.12)] backdrop-blur-2xl">
         <div className="flex items-center justify-between">
           <div>
@@ -207,9 +269,20 @@ export default function Home() {
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-3">
-          <SmallStat label="Albums" value={stats.cdCount} />
-          <SmallStat label="Favoris" value={favorites.length} />
-          <SmallStat label="Wishlist" value={wishlistAlbums.length} />
+          <SmallStat
+            label="Albums"
+            value={stats.cdCount}
+          />
+
+          <SmallStat
+            label="Favoris"
+            value={favorites.length}
+          />
+
+          <SmallStat
+            label="Wishlist"
+            value={wishlistAlbums.length}
+          />
         </div>
 
         <Link
@@ -220,6 +293,7 @@ export default function Home() {
         </Link>
       </section>
 
+      {/* WISHLIST */}
       <section className="mt-6 rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-[0_15px_45px_rgba(33,85,255,0.12)] backdrop-blur-2xl">
         <div className="mb-4 flex items-end justify-between">
           <div>
@@ -243,7 +317,10 @@ export default function Home() {
         {displayedWishlistAlbums.length > 0 ? (
           <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2">
             {displayedWishlistAlbums.map((album) => (
-              <WishlistCard key={album.id} album={album} />
+              <WishlistCard
+                key={album.id}
+                album={album}
+              />
             ))}
           </div>
         ) : (
@@ -254,14 +331,25 @@ export default function Home() {
   );
 }
 
-function HeroLatestAlbum({ album }: { album?: Album }) {
+/* ========================= */
+/* HERO CD */
+/* ========================= */
+
+function HeroLatestAlbum({
+  album,
+}: {
+  album?: Album;
+}) {
   const cover = getAlbumCover(album);
 
   return (
     <div className="pointer-events-none absolute right-2 top-4 h-[150px] w-[170px]">
       {album && cover ? (
         <div className="relative h-full w-full">
-          <CDCase3D cover={cover} title={album.title} />
+          <CDCase3D
+            cover={cover}
+            title={album.title}
+          />
         </div>
       ) : (
         <div className="absolute right-6 top-4 h-24 w-24 rounded-full bg-[conic-gradient(from_0deg,#2155ff,#7dd3fc,#ffffff,#ff4b4b,#2155ff)] p-[7px] shadow-[0_20px_50px_rgba(33,85,255,0.25)]">
@@ -274,7 +362,13 @@ function HeroLatestAlbum({ album }: { album?: Album }) {
   );
 }
 
-function CDCase3D({ cover, title }: { cover: string; title: string }) {
+function CDCase3D({
+  cover,
+  title,
+}: {
+  cover: string;
+  title: string;
+}) {
   return (
     <div className="cdex-hero-album-float relative h-[145px] w-[170px]">
       <div className="absolute inset-0 translate-x-4 translate-y-5 rounded-[1.4rem] bg-[#2155ff]/20 blur-2xl" />
@@ -286,7 +380,8 @@ function CDCase3D({ cover, title }: { cover: string; title: string }) {
           top: "10%",
           width: "60%",
           height: "75%",
-          transform: "skewY(11deg) rotate(0deg)",
+          transform:
+            "skewY(11deg) rotate(0deg)",
           borderRadius: "0px",
         }}
       >
@@ -313,7 +408,15 @@ function CDCase3D({ cover, title }: { cover: string; title: string }) {
   );
 }
 
-function AlbumMiniCard({ album }: { album: Album }) {
+/* ========================= */
+/* CARDS */
+/* ========================= */
+
+function AlbumMiniCard({
+  album,
+}: {
+  album: Album;
+}) {
   const cover = getAlbumCover(album);
 
   return (
@@ -361,7 +464,11 @@ function AlbumMiniCard({ album }: { album: Album }) {
   );
 }
 
-function WishlistCard({ album }: { album: Album }) {
+function WishlistCard({
+  album,
+}: {
+  album: Album;
+}) {
   const cover = getAlbumCover(album);
 
   return (
@@ -409,22 +516,42 @@ function WishlistCard({ album }: { album: Album }) {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string | number }) {
+/* ========================= */
+/* UI */
+/* ========================= */
+
+function StatCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
   return (
     <div className="rounded-[1.4rem] border border-blue-100/70 bg-white/70 p-4 shadow-sm backdrop-blur-xl">
       <p className="text-[10px] font-black uppercase tracking-wide text-blue-950/45">
         {label}
       </p>
 
-      <p className="mt-1 text-2xl font-black text-[#2155ff]">{value}</p>
+      <p className="mt-1 text-2xl font-black text-[#2155ff]">
+        {value}
+      </p>
     </div>
   );
 }
 
-function SmallStat({ label, value }: { label: string; value: string | number }) {
+function SmallStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
   return (
     <div className="rounded-[1.3rem] bg-blue-50/80 p-3 text-center">
-      <p className="text-lg font-black text-[#2155ff]">{value}</p>
+      <p className="text-lg font-black text-[#2155ff]">
+        {value}
+      </p>
 
       <p className="mt-1 text-[9px] font-black uppercase text-blue-950/45">
         {label}
@@ -442,7 +569,9 @@ function QuickAction({
   icon: string;
   label: string;
 }) {
-  const isImageIcon = icon.endsWith(".png");
+  const isImageIcon =
+    typeof icon === "string" &&
+    icon.endsWith(".png");
 
   return (
     <Link
@@ -459,16 +588,24 @@ function QuickAction({
             className="h-8 w-8 object-contain"
           />
         ) : (
-          <span className="text-xl font-black text-[#2155ff]">{icon}</span>
+          <span className="text-xl font-black text-[#2155ff]">
+            {icon}
+          </span>
         )}
       </div>
 
-      <p className="mt-2 text-[11px] font-black text-blue-950">{label}</p>
+      <p className="mt-2 text-[11px] font-black text-blue-950">
+        {label}
+      </p>
     </Link>
   );
 }
 
-function EmptyCard({ text }: { text: string }) {
+function EmptyCard({
+  text,
+}: {
+  text: string;
+}) {
   return (
     <div className="rounded-[1.5rem] border border-blue-100/70 bg-blue-50/60 p-4 text-center text-sm font-bold text-blue-950/45">
       {text}
