@@ -234,7 +234,11 @@ export default function CollectionPage() {
                       src={cover}
                       alt={album.title || "Album"}
                       fill
-                      className="object-cover transition duration-300 group-hover:scale-105"
+                      className={`object-cover transition duration-300 group-hover:scale-105 ${
+  album.discovered === false
+    ? "grayscale brightness-[0.5] contrast-[0.90] opacity-60"
+    : ""
+}`}
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-100 to-blue-200">
