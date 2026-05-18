@@ -28,20 +28,18 @@ export default function ScanPage() {
     setAlbum(null);
 
     try {
-      const scanner = new Html5Qrcode(
-  "reader",
-  {
-    formatsToSupport: [
-      Html5QrcodeSupportedFormats.EAN_13,
-      Html5QrcodeSupportedFormats.EAN_8,
-      Html5QrcodeSupportedFormats.UPC_A,
-      Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.QR_CODE,
-    ],
-  },
-  false
-);
+      const scanner = new Html5Qrcode("reader", {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.QR_CODE,
+        ],
+        verbose: false,
+      });
+
       scannerRef.current = scanner;
 
       await scanner.start(
@@ -102,20 +100,17 @@ export default function ScanPage() {
     setAlbum(null);
 
     try {
-      const scanner = new Html5Qrcode(
-  "file-reader",
-  {
-    formatsToSupport: [
-      Html5QrcodeSupportedFormats.EAN_13,
-      Html5QrcodeSupportedFormats.EAN_8,
-      Html5QrcodeSupportedFormats.UPC_A,
-      Html5QrcodeSupportedFormats.UPC_E,
-      Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.QR_CODE,
-    ],
-  },
-  false
-);
+      const scanner = new Html5Qrcode("file-reader", {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.QR_CODE,
+        ],
+        verbose: false,
+      });
 
       const decodedText = await scanner.scanFile(file, true);
       const cleanedCode = cleanBarcode(decodedText);
@@ -123,7 +118,9 @@ export default function ScanPage() {
       await scanner.clear();
 
       if (!cleanedCode) {
-        setMessage("Aucun code-barres lisible trouvé sur cette image.");
+        setMessage(
+          "Aucun code-barres lisible trouvé sur cette image."
+        );
         return;
       }
 
@@ -169,14 +166,17 @@ export default function ScanPage() {
       const release = data.releases[0];
 
       const artist =
-        release["artist-credit"]?.map((artist: any) => artist.name).join(", ") ||
-        "Artiste inconnu";
+        release["artist-credit"]
+          ?.map((artist: any) => artist.name)
+          .join(", ") || "Artiste inconnu";
 
       const newAlbum = {
         id: release.id,
         title: release.title,
         artist,
-        year: release.date ? Number(release.date.slice(0, 4)) || 0 : 0,
+        year: release.date
+          ? Number(release.date.slice(0, 4)) || 0
+          : 0,
         genre: "Non renseigné",
         duration: "Non renseignée",
         estimatedValue: "Non estimée",
@@ -224,7 +224,11 @@ export default function ScanPage() {
   function openAlbumPreview() {
     if (!album) return;
 
-    sessionStorage.setItem("cdex-preview-album", JSON.stringify(album));
+    sessionStorage.setItem(
+      "cdex-preview-album",
+      JSON.stringify(album)
+    );
+
     router.push(`/album/${album.id}`);
   }
 
@@ -282,7 +286,7 @@ export default function ScanPage() {
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-[#5e6b85]">
-                Prends une photo bien nette du code-barres, droite et sans reflet.
+                Prends une photo bien nette du code-barres.
               </p>
 
               <button
@@ -297,7 +301,9 @@ export default function ScanPage() {
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(event) => scanImageFile(event.target.files?.[0])}
+                onChange={(event) =>
+                  scanImageFile(event.target.files?.[0])
+                }
               />
 
               <div id="file-reader" className="hidden" />
