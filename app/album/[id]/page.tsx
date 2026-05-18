@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { albums } from "../../data/albums";
 
+const noteOptions = Array.from({ length: 21 }, (_, index) => index * 0.5);
+
 export default function AlbumPage() {
   const router = useRouter();
   const params = useParams();
@@ -18,8 +20,13 @@ export default function AlbumPage() {
   const [previewAlbum, setPreviewAlbum] = useState<any>(null);
 
   const [listenOpen, setListenOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
   const [toast, setToast] = useState("");
+
+  const [noteEditing, setNoteEditing] = useState(false);
+  const [descriptionEditing, setDescriptionEditing] = useState(false);
+  const [coverEditing, setCoverEditing] = useState(false);
+
+  const [editingField, setEditingField] = useState("");
 
   const [personalNote, setPersonalNote] = useState("");
   const [personalDescription, setPersonalDescription] = useState("");
@@ -68,7 +75,8 @@ export default function AlbumPage() {
     reader.onload = () => {
       if (typeof reader.result === "string") {
         setEditedCover(reader.result);
-        showToast("Photo modifiée.");
+        setCoverEditing(false);
+        showToast("Pochette modifiée.");
       }
     };
 
@@ -261,17 +269,9 @@ export default function AlbumPage() {
     );
 
     localStorage.setItem("cdex-user-albums", JSON.stringify(updatedAlbums));
-
     showToast(`"${album.title}" a été supprimé.`);
 
-    setTimeout(() => {
-      router.push("/collection");
-    }, 900);
-  }
-
-  function finishEdit() {
-    setEditMode(false);
-    showToast(`"${album.title}" a été modifié.`);
+    setTimeout(() => router.push("/collection"), 900);
   }
 
   return (
@@ -329,9 +329,16 @@ export default function AlbumPage() {
             >
               ♥
             </button>
+
+            <button
+              onClick={() => setCoverEditing(!coverEditing)}
+              className="absolute bottom-4 left-4 flex h-12 w-12 items-center justify-center rounded-full border border-blue-100 bg-white/90 text-xl font-black text-[#2155ff] shadow-xl"
+            >
+              ✎
+            </button>
           </div>
 
-          {editMode && (
+          {coverEditing && (
             <div className="mt-4 rounded-[2rem] border border-blue-100 bg-blue-50/70 p-4">
               <h2 className="text-lg font-black text-[#2155ff]">
                 Modifier la pochette
@@ -374,63 +381,70 @@ export default function AlbumPage() {
                 />
 
                 <Input
-                  label="Ou URL de la pochette"
+                  label="URL de la pochette"
                   value={editedCover}
                   setValue={setEditedCover}
                   placeholder="Colle une URL d’image"
                 />
 
-                {editedCover && (
-                  <button
-                    onClick={() => {
-                      setEditedCover("");
-                      showToast("Pochette réinitialisée.");
-                    }}
-                    className="rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm font-black text-red-500"
-                  >
-                    Réinitialiser la pochette
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    setEditedCover("");
+                    setCoverEditing(false);
+                    showToast("Pochette réinitialisée.");
+                  }}
+                  className="rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm font-black text-red-500"
+                >
+                  Réinitialiser la pochette
+                </button>
               </div>
             </div>
           )}
         </div>
 
         <div className="px-7 pb-7">
-          {editMode ? (
-            <div className="flex flex-col gap-3">
-              <Input label="Titre" value={editedTitle} setValue={setEditedTitle} placeholder={baseAlbum.title} />
-              <Input label="Artiste" value={editedArtist} setValue={setEditedArtist} placeholder={baseAlbum.artist} />
-              <Input label="Année" value={editedYear} setValue={setEditedYear} placeholder={String(baseAlbum.year)} />
-              <Input label="Genre" value={editedGenre} setValue={setEditedGenre} placeholder={baseAlbum.genre} />
-              <Input label="Durée" value={editedDuration} setValue={setEditedDuration} placeholder={baseAlbum.duration} />
-              <Input label="Valeur estimée" value={editedValue} setValue={setEditedValue} placeholder={baseAlbum.estimatedValue} />
-              <Input label="Rareté" value={editedRarity} setValue={setEditedRarity} placeholder={baseAlbum.rarity} />
-            </div>
-          ) : (
-            <>
-              <p className="text-sm font-bold uppercase tracking-widest text-blue-500">
-                {album.rarity}
-              </p>
+          <EditableTitle
+            value={album.rarity}
+            baseValue={baseAlbum.rarity}
+            editedValue={editedRarity}
+            setEditedValue={setEditedRarity}
+            field="rarity"
+            editingField={editingField}
+            setEditingField={setEditingField}
+            label="Rareté"
+            small
+          />
 
-              <h1 className="mt-2 text-5xl font-black leading-none text-[#2155ff]">
-                {album.title}
-              </h1>
+          <EditableTitle
+            value={album.title}
+            baseValue={baseAlbum.title}
+            editedValue={editedTitle}
+            setEditedValue={setEditedTitle}
+            field="title"
+            editingField={editingField}
+            setEditingField={setEditingField}
+            label="Titre"
+            big
+          />
 
-              <p className="mt-3 text-xl font-bold text-[#071f4f]">
-                {album.artist}
-              </p>
+          <EditableTitle
+            value={album.artist}
+            baseValue={baseAlbum.artist}
+            editedValue={editedArtist}
+            setEditedValue={setEditedArtist}
+            field="artist"
+            editingField={editingField}
+            setEditingField={setEditingField}
+            label="Artiste"
+          />
 
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <Info label="Date" value={String(album.year)} />
-                <Info label="Genre" value={album.genre} />
-                <Info label="Durée" value={album.duration} />
-                <Info label="Valeur" value={album.estimatedValue} />
-                <Info label="Ajouté le" value={album.addedAt} />
-                <Info label="Rareté" value={album.rarity} />
-              </div>
-            </>
-          )}
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <EditableInfo label="Date" value={String(album.year)} baseValue={String(baseAlbum.year)} editedValue={editedYear} setEditedValue={setEditedYear} field="year" editingField={editingField} setEditingField={setEditingField} />
+            <EditableInfo label="Genre" value={album.genre} baseValue={baseAlbum.genre} editedValue={editedGenre} setEditedValue={setEditedGenre} field="genre" editingField={editingField} setEditingField={setEditingField} />
+            <EditableInfo label="Durée" value={album.duration} baseValue={baseAlbum.duration} editedValue={editedDuration} setEditedValue={setEditedDuration} field="duration" editingField={editingField} setEditingField={setEditingField} />
+            <EditableInfo label="Valeur" value={album.estimatedValue} baseValue={baseAlbum.estimatedValue} editedValue={editedValue} setEditedValue={setEditedValue} field="value" editingField={editingField} setEditingField={setEditingField} />
+            <Info label="Ajouté le" value={album.addedAt} />
+          </div>
         </div>
       </section>
 
@@ -458,24 +472,84 @@ export default function AlbumPage() {
       <section className="mt-6 rounded-[2rem] border border-blue-100/60 bg-white/80 p-6 shadow-lg">
         <h2 className="text-2xl font-black text-[#2155ff]">Ma note</h2>
 
-        <input
-          value={personalNote}
-          onChange={(event) => setPersonalNote(event.target.value)}
-          placeholder="Ex : 8/10, chef d’œuvre, classique..."
-          className="mt-4 w-full rounded-2xl border border-blue-100 bg-white px-5 py-4 text-sm font-semibold outline-none focus:border-blue-400"
-        />
+        {noteEditing ? (
+          <div className="mt-4">
+            <select
+              value={personalNote}
+              onChange={(event) => setPersonalNote(event.target.value)}
+              className="w-full rounded-2xl border border-blue-100 bg-white px-5 py-4 text-lg font-black text-[#2155ff] outline-none"
+            >
+              <option value="">Non noté</option>
+              {noteOptions.map((value) => (
+                <option key={value} value={`${value}/10`}>
+                  {value}/10
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => {
+                setNoteEditing(false);
+                showToast("Note enregistrée.");
+              }}
+              className="mt-3 w-full rounded-2xl bg-[#2155ff] px-5 py-3 text-sm font-black text-white"
+            >
+              Valider la note
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setNoteEditing(true)}
+            className="mt-4 w-full rounded-2xl border border-blue-100 bg-blue-50 px-5 py-5 text-left"
+          >
+            <p className="text-sm font-bold text-[#5e6b85]">
+              Clique pour modifier
+            </p>
+
+            <p className="mt-1 text-3xl font-black text-[#2155ff]">
+              {personalNote || "Non noté"}
+            </p>
+          </button>
+        )}
 
         <h3 className="mt-6 text-xl font-black text-[#2155ff]">
           Description personnelle
         </h3>
 
-        <textarea
-          value={personalDescription}
-          onChange={(event) => setPersonalDescription(event.target.value)}
-          placeholder="Écris ce que tu penses de cet album..."
-          rows={5}
-          className="mt-4 w-full resize-none rounded-2xl border border-blue-100 bg-white px-5 py-4 text-sm font-semibold outline-none focus:border-blue-400"
-        />
+        {descriptionEditing ? (
+          <div className="mt-4">
+            <textarea
+              value={personalDescription}
+              onChange={(event) => setPersonalDescription(event.target.value)}
+              placeholder="Écris ce que tu penses de cet album..."
+              rows={5}
+              className="w-full resize-none rounded-2xl border border-blue-100 bg-white px-5 py-4 text-sm font-semibold outline-none focus:border-blue-400"
+            />
+
+            <button
+              onClick={() => {
+                setDescriptionEditing(false);
+                showToast("Description enregistrée.");
+              }}
+              className="mt-3 w-full rounded-2xl bg-[#2155ff] px-5 py-3 text-sm font-black text-white"
+            >
+              Valider la description
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setDescriptionEditing(true)}
+            className="mt-4 w-full rounded-2xl border border-blue-100 bg-blue-50 px-5 py-5 text-left"
+          >
+            <p className="text-sm font-bold text-[#5e6b85]">
+              Clique pour modifier
+            </p>
+
+            <p className="mt-2 whitespace-pre-line text-sm font-bold leading-6 text-[#071f4f]">
+              {personalDescription || "Aucune description personnelle."}
+            </p>
+          </button>
+        )}
 
         <p className="mt-3 text-xs font-bold text-blue-400">
           Sauvegarde automatique sur cet appareil.
@@ -528,16 +602,6 @@ export default function AlbumPage() {
           </div>
         )}
 
-        <button
-          onClick={() => {
-            if (editMode) finishEdit();
-            else setEditMode(true);
-          }}
-          className="mt-4 w-full rounded-2xl border border-blue-100 bg-blue-50 px-6 py-4 text-center text-lg font-black text-[#2155ff]"
-        >
-          {editMode ? "Terminer la modification" : "Modifier la fiche"}
-        </button>
-
         {isInCollection && (
           <button
             onClick={deleteAlbum}
@@ -548,6 +612,122 @@ export default function AlbumPage() {
         )}
       </section>
     </main>
+  );
+}
+
+function EditableTitle({
+  value,
+  baseValue,
+  editedValue,
+  setEditedValue,
+  field,
+  editingField,
+  setEditingField,
+  label,
+  big,
+  small,
+}: any) {
+  const isEditing = editingField === field;
+
+  if (isEditing) {
+    return (
+      <div className="mt-3">
+        <Input
+          label={label}
+          value={editedValue}
+          setValue={setEditedValue}
+          placeholder={baseValue}
+        />
+
+        <button
+          onClick={() => setEditingField("")}
+          className="mt-2 rounded-2xl bg-[#2155ff] px-4 py-2 text-xs font-black text-white"
+        >
+          Valider
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex items-start gap-2">
+      <div className="flex-1">
+        <p
+          className={
+            big
+              ? "text-5xl font-black leading-none text-[#2155ff]"
+              : small
+              ? "text-sm font-bold uppercase tracking-widest text-blue-500"
+              : "text-xl font-bold text-[#071f4f]"
+          }
+        >
+          {value}
+        </p>
+      </div>
+
+      <button
+        onClick={() => setEditingField(field)}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-sm font-black text-[#2155ff]"
+      >
+        ✎
+      </button>
+    </div>
+  );
+}
+
+function EditableInfo({
+  label,
+  value,
+  baseValue,
+  editedValue,
+  setEditedValue,
+  field,
+  editingField,
+  setEditingField,
+}: any) {
+  const isEditing = editingField === field;
+
+  if (isEditing) {
+    return (
+      <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+        <Input
+          label={label}
+          value={editedValue}
+          setValue={setEditedValue}
+          placeholder={baseValue}
+        />
+
+        <button
+          onClick={() => setEditingField("")}
+          className="mt-2 rounded-2xl bg-[#2155ff] px-4 py-2 text-xs font-black text-white"
+        >
+          Valider
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-[#5e6b85]">
+            {label}
+          </p>
+
+          <p className="mt-1 text-sm font-black text-[#071f4f]">
+            {value}
+          </p>
+        </div>
+
+        <button
+          onClick={() => setEditingField(field)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-blue-100 bg-white text-xs font-black text-[#2155ff]"
+        >
+          ✎
+        </button>
+      </div>
+    </div>
   );
 }
 

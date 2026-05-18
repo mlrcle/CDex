@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "./components/Navbar";
-import Link from "next/link";
+import SettingsButton from "./components/settingsbutton";
 
 export const metadata: Metadata = {
   title: "CDex",
@@ -16,17 +16,8 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body>
-        <div className="relative">
-          <Navbar />
-
-          <Link
-            href="/settings"
-            className="fixed right-5 top-4 z-[999] flex h-11 w-11 items-center justify-center rounded-full border border-blue-100 bg-white/90 text-xl font-black text-[#2155ff] shadow-xl backdrop-blur"
-          >
-            ⚙
-          </Link>
-        </div>
-
+        <Navbar />
+        <SettingsButton />
         {children}
       </body>
     </html>

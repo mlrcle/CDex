@@ -3,7 +3,7 @@ export type CdexAlbum = {
   title: string;
   artist: string;
   year: number;
-  genre: string;
+  genre?: string;
   duration?: string;
   estimatedValue?: string;
   rarity?: string;
@@ -13,8 +13,31 @@ export function getUserAlbums(): CdexAlbum[] {
   if (typeof window === "undefined") return [];
 
   const savedAlbums = localStorage.getItem("cdex-user-albums");
+  const albums: CdexAlbum[] = savedAlbums ? JSON.parse(savedAlbums) : [];
 
-  return savedAlbums ? JSON.parse(savedAlbums) : [];
+  return albums.map((album) => {
+    const personalData = localStorage.getItem(
+      `cdex-album-personal-${album.id}`
+    );
+
+    if (!personalData) return album;
+
+    try {
+      const data = JSON.parse(personalData);
+
+      return {
+        ...album,
+        title: data.editedTitle || album.title,
+        artist: data.editedArtist || album.artist,
+        genre: data.editedGenre || album.genre,
+        duration: data.editedDuration || album.duration,
+        estimatedValue: data.editedValue || album.estimatedValue,
+        rarity: data.editedRarity || album.rarity,
+      };
+    } catch {
+      return album;
+    }
+  });
 }
 
 export function getCollectionStats(albums: CdexAlbum[]) {
@@ -28,8 +51,13 @@ export function getCollectionStats(albums: CdexAlbum[]) {
     return total + extractMinutes(album.duration);
   }, 0);
 
-  const favoriteGenre = getMostCommon(albums.map((album) => album.genre));
-  const favoriteArtist = getMostCommon(albums.map((album) => album.artist));
+  const favoriteGenre = getMostCommon(
+    albums.map((album) => album.genre || "")
+  );
+
+  const favoriteArtist = getMostCommon(
+    albums.map((album) => album.artist || "")
+  );
 
   const level = calculateLevel(albums);
 
@@ -46,26 +74,45 @@ export function getCollectionStats(albums: CdexAlbum[]) {
 function extractPrice(value?: string) {
   if (!value) return 0;
 
-  const numbers = value.match(/\d+/g);
+  const cleaned = value.replace(",", ".");
 
-  if (!numbers) return 0;
+  const match = cleaned.match(/\d+(\.\d+)?/);
 
-  return Number(numbers[0]);
+  if (!match) return 0;
+
+  return Number(match[0]);
 }
 
 function extractMinutes(duration?: string) {
   if (!duration) return 0;
 
-  const numbers = duration.match(/\d+/g);
+  const text = duration.toLowerCase();
 
-  if (!numbers) return 0;
+  const hoursMatch = text.match(/(\d+)\s*h/);
+  const minutesMatch = text.match(/(\d+)\s*min/);
 
-  return Number(numbers[0]);
+  const hours = hoursMatch ? Number(hoursMatch[1]) : 0;
+  const minutes = minutesMatch ? Number(minutesMatch[1]) : 0;
+
+  if (hours || minutes) return hours * 60 + minutes;
+
+  const simpleNumber = text.match(/\d+/);
+
+  return simpleNumber ? Number(simpleNumber[0]) : 0;
 }
 
 function getMostCommon(values: string[]) {
+  const ignoredValues = [
+    "",
+    "Non renseigné",
+    "Non renseignée",
+    "Inconnu",
+    "Inconnue",
+    "Aucun",
+  ];
+
   const filteredValues = values.filter(
-    (value) => value && value !== "Non renseigné"
+    (value) => value && !ignoredValues.includes(value)
   );
 
   if (filteredValues.length === 0) return "Aucun pour le moment";
