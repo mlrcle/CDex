@@ -9,7 +9,7 @@ type Album = {
   id: string;
   title: string;
   artist: string;
-  year?: string | number;
+  year?: number;
   cover?: string;
   image?: string;
   coverUrl?: string;
@@ -27,7 +27,12 @@ function normalizeAlbum(album: Partial<Album>): Album {
     id: album.id || crypto.randomUUID(),
     title: album.title || "Album inconnu",
     artist: album.artist || "Artiste inconnu",
-    year: album.year,
+    year:
+  typeof album.year === "number"
+    ? album.year
+    : album.year
+      ? Number(album.year)
+      : undefined,
     cover: album.cover,
     image: album.image,
     coverUrl: album.coverUrl,
