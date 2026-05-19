@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { rollRarity } from "@/app/lib/rarity";
+import { albums as baseAlbums } from "@/app/data/albums";
 import { getLevelFromXp } from "@/app/lib/profileLevel";
 
 type UserAlbum = {
@@ -63,40 +64,47 @@ export default function ProfilePage() {
   const [editingObjective, setEditingObjective] = useState(false);
 
   useEffect(() => {
-    const savedAlbums = JSON.parse(
-      localStorage.getItem("cdex-user-albums") || "[]"
-    );
+  const savedAlbums = JSON.parse(
+    localStorage.getItem("cdex-user-albums") || "[]"
+  );
 
-    const migratedAlbums: UserAlbum[] = savedAlbums.map((album: any) => {
-      if (
-        album.rarity &&
-        album.rarity !== "Non renseigné" &&
-        album.rarity !== "Non renseignée" &&
-        typeof album.xp === "number"
-      ) {
-        return album;
-      }
+  const migratedAlbums: UserAlbum[] = savedAlbums.map((album: any) => {
+    if (
+      album.rarity &&
+      album.rarity !== "Non renseigné" &&
+      album.rarity !== "Non renseignée" &&
+      typeof album.xp === "number"
+    ) {
+      return album;
+    }
 
-      const rarity = rollRarity();
+    const rarity = rollRarity();
 
-      return {
-        ...album,
-        rarity: rarity.name,
-        xp: rarity.xp,
-      };
-    });
+    return {
+      ...album,
+      rarity: rarity.name,
+      xp: rarity.xp,
+    };
+  });
 
-    localStorage.setItem("cdex-user-albums", JSON.stringify(migratedAlbums));
+  localStorage.setItem("cdex-user-albums", JSON.stringify(migratedAlbums));
 
-    setAlbums(migratedAlbums);
-    setWishlist(JSON.parse(localStorage.getItem("cdex-wishlist") || "[]"));
-    setDescription(localStorage.getItem("cdex-profile-description") || "");
-    setProfileImage(localStorage.getItem("cdex-profile-image") || "");
-    setProfileName(localStorage.getItem("cdex-profile-name") || "Mon profil");
+  const cleanedBaseAlbums = baseAlbums.map((album: any) => ({
+    ...album,
+    source: "database",
+  }));
 
-    const savedObjective = localStorage.getItem("cdex-collection-objective");
-    setObjective(savedObjective ? Number(savedObjective) || 50 : 50);
-  }, []);
+  setAlbums([...migratedAlbums, ...cleanedBaseAlbums]);
+  setWishlist(JSON.parse(localStorage.getItem("cdex-wishlist") || "[]"));
+  setDescription(localStorage.getItem("cdex-profile-description") || "");
+  setProfileImage(localStorage.getItem("cdex-profile-image") || "");
+  setProfileName(localStorage.getItem("cdex-profile-name") || "Mon profil");
+
+  const savedObjective = localStorage.getItem("cdex-collection-objective");
+  setObjective(savedObjective ? Number(savedObjective) || 50 : 50);
+}, []);
+
+    
 
   function saveDescription(value: string) {
     setDescription(value);
@@ -603,17 +611,23 @@ function getGenreStats(albums: UserAlbum[]): GenreStat[] {
 
   albums.forEach((album) => {
     const genre = normalizeValue(album.genre);
-    count[genre] = (count[genre] || 0) + 1;
+
+if (genre === "Non renseigné") return;
+
+count[genre] = (count[genre] || 0) + 1;
   });
 
-  return Object.entries(count)
-    .map(([name, value], index) => ({
-      name,
-      count: value,
-      percent: albums.length > 0 ? Math.round((value / albums.length) * 100) : 0,
-      color: PIE_COLORS[index % PIE_COLORS.length],
-    }))
-    .sort((a, b) => b.count - a.count);
+  const totalKnownGenres = Object.values(count).reduce((sum, value) => sum + value, 0);
+
+return Object.entries(count)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 6)
+  .map(([name, value], index) => ({
+    name,
+    count: value,
+    percent: totalKnownGenres > 0 ? Math.round((value / totalKnownGenres) * 100) : 0,
+    color: PIE_COLORS[index % PIE_COLORS.length],
+  }));
 }
 
 function getRarityStats(albums: UserAlbum[]): RarityStat[] {

@@ -11,6 +11,7 @@ type Album = {
   artist?: string;
   year?: number | string;
   genre?: string;
+  rarity?: string;
   discovered?: boolean;
   cover?: string;
   image?: string;
@@ -22,8 +23,30 @@ type Album = {
 
 type FilterType = "all" | "owned" | "wishlist" | "favorites";
 
+const rarityOrder: Record<string, number> = {
+  "légendaire": 5,
+  legendaire: 5,
+
+  "épique": 4,
+  epique: 4,
+
+  "très rare": 3,
+  "tres rare": 3,
+
+  rare: 2,
+
+  commun: 1,
+
+ 
+};
+
 function getAlbumCover(album: Album) {
   return album.cover || album.image || album.coverUrl || album.imageUrl || "";
+}
+
+function getRarityScore(album: Album) {
+  const rarity = String(album.rarity || "commun").toLowerCase();
+  return rarityOrder[rarity] || 0;
 }
 
 export default function CollectionPage() {
@@ -84,17 +107,12 @@ export default function CollectionPage() {
   }
 
   const allAlbums = useMemo(() => {
-    const baseAlbums: Album[] = albums.map((album) => ({
-      ...album,
-      source: "database",
-    }));
-
-    return removeDuplicateAlbums([
-      ...userAlbums,
-      ...wishlistAlbums,
-      ...baseAlbums,
-    ]);
-  }, [userAlbums, wishlistAlbums]);
+  return removeDuplicateAlbums([
+    ...userAlbums,
+    ...wishlistAlbums,
+    ...albums.filter((album) => favorites.includes(album.id)),
+  ]);
+}, [userAlbums, wishlistAlbums, favorites]); 
 
   const filteredAlbums = useMemo(() => {
     return [...allAlbums]
@@ -106,19 +124,18 @@ export default function CollectionPage() {
           album.artist?.toLowerCase().includes(query) ||
           album.genre?.toLowerCase().includes(query);
 
-        const isOwned =
-          album.source !== "database" && album.source !== "wishlist";
+        const isOwned = userAlbums.some((item) => item.id === album.id);
         const isWishlist = wishlistAlbums.some((item) => item.id === album.id);
         const isFavorite = favorites.includes(album.id);
 
         const matchesFilter =
-          activeFilter === "all"
-            ? true
-            : activeFilter === "owned"
-              ? isOwned
-              : activeFilter === "wishlist"
-                ? isWishlist
-                : isFavorite;
+  activeFilter === "all"
+    ? isOwned || isWishlist || isFavorite
+    : activeFilter === "owned"
+      ? isOwned
+      : activeFilter === "wishlist"
+        ? isWishlist
+        : isFavorite;
 
         return matchesSearch && matchesFilter;
       })
@@ -133,6 +150,10 @@ export default function CollectionPage() {
 
         if (sort === "year") {
           return Number(a.year || 0) - Number(b.year || 0);
+        }
+
+        if (sort === "rarity") {
+          return getRarityScore(b) - getRarityScore(a);
         }
 
         return String(a.title || "").localeCompare(String(b.title || ""));
@@ -188,6 +209,7 @@ export default function CollectionPage() {
               <option value="artist">Artiste</option>
               <option value="genre">Genre</option>
               <option value="year">Année</option>
+              <option value="rarity">Rareté</option>
             </select>
 
             <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-blue-400">
@@ -203,18 +225,22 @@ export default function CollectionPage() {
         {filteredAlbums.map((album) => {
           const cover = getAlbumCover(album);
           const isFavorite = favorites.includes(album.id);
-          const isWishlist = wishlistAlbums.some((item) => item.id === album.id);
 
           return (
             <article
               key={album.id}
               className="group relative overflow-hidden rounded-[1rem] border border-white/70 bg-white/90 shadow-[0_10px_28px_rgba(33,85,255,0.12)] backdrop-blur-xl transition duration-300 active:scale-95"
             >
-              <div className="absolute right-1.5 bottom-[5px] z-20 flex gap-1">
+              <div className="absolute bottom-[5px] right-1.5 z-20 flex gap-1">
                 <button
-                  onClick={() => toggleFavorite(album.id)}
-                  className="flex h-6 w-6 items-center justify-center rounded-full transition active:scale-90"
-                >
+  type="button"
+  onClick={(event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleFavorite(album.id);
+  }}
+  className="flex h-6 w-6 items-center justify-center rounded-full transition active:scale-90"
+>
                   <Image
                     src={isFavorite ? "/coeur-appuye.png" : "/coeur.png"}
                     alt="Favori"
@@ -223,11 +249,12 @@ export default function CollectionPage() {
                     className="h-full w-full object-contain"
                   />
                 </button>
-
-                
               </div>
 
-              <Link href={`/album/${album.id}`} className="block">
+              <Link
+  href={`/album/${album.musicBrainzId || album.id}`}
+  className="block"
+>
                 <div className="relative aspect-square overflow-hidden bg-blue-50">
                   {cover ? (
                     <Image
@@ -235,7 +262,7 @@ export default function CollectionPage() {
                       alt={album.title || "Album"}
                       fill
                       className={`object-cover transition duration-300 group-hover:scale-105 ${
-  album.discovered === false
+  !userAlbums.some((item) => item.id === album.id)
     ? "grayscale brightness-[0.5] contrast-[0.90] opacity-60"
     : ""
 }`}
@@ -290,7 +317,7 @@ function FilterButton({
   );
 }
 
-function SmallStat({ label, value }: { label: string; value: string | number }) {
+function SmallStat({ label, value }: { label: string | number; value: string | number }) {
   return (
     <div className="rounded-2xl border border-blue-100/70 bg-white/80 px-4 py-3 text-center shadow-sm backdrop-blur-xl">
       <p className="text-[10px] font-black uppercase tracking-wide text-blue-950/45">

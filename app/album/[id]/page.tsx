@@ -81,6 +81,30 @@ function getRarityImage(rarity?: string) {
       return "/commun.png";
   }
 }
+function getRarityStyle(rarity?: string) {
+  switch (String(rarity || "").toLowerCase()) {
+    case "légendaire":
+    case "legendaire":
+      return "bg-yellow-100 text-yellow-700";
+
+    case "épique":
+    case "epique":
+      return "bg-violet-100 text-violet-700";
+
+    case "très rare":
+    case "tres rare":
+      return "bg-blue-100 text-blue-700";
+
+    case "rare":
+      return "bg-green-100 text-green-700";
+
+    case "commun":
+      return "bg-gray-100 text-gray-600";
+
+    default:
+      return "bg-gray-100 text-gray-600";
+  }
+}
 export default function AlbumPage() {
   const router = useRouter();
   const params = useParams();
@@ -509,8 +533,13 @@ setPersonalTracks([...baseTracks, newTrack.trim()]);
 
         <div className="px-2 pb-2 pt-6">
           <div className="flex justify-end">
-            <p className="rounded-full bg-blue-50 px-3 py-1 text-[10px] font-black uppercase text-[#2155ff]">
-              {displayedRarity}
+           <p
+  className={`relative -top-12 left-[-128px] rounded-full px-3 py-1 text-[10px] font-black uppercase ${getRarityStyle(displayedRarity)}`}
+>
+              {["commun", "rare", "très rare", "tres rare", "épique", "epique", "légendaire", "legendaire"]
+  .includes(String(displayedRarity || "").toLowerCase())
+  ? displayedRarity
+  : "COMMUN"}
             </p>
           </div>
 

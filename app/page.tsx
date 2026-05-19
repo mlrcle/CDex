@@ -168,7 +168,7 @@ export default function Home() {
       <section className="mt-5 grid grid-cols-3 gap-3">
         <QuickAction href="/favorites" icon="/coeur.png" label="Favoris" />
         <QuickAction href="/wishlist" icon="/etoile.png" label="Wishlist" />
-        <QuickAction href="/profile" icon="▣" label="Stats" />
+        <QuickAction href="/profile" icon="/stats.png" label="Stats" />
       </section>
 
       {/* RECENT ALBUMS */}
@@ -426,10 +426,16 @@ function QuickAction({ href, icon, label }: { href: string; icon: string; label:
     >
       <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50">
         {isImageIcon ? (
-          <Image src={icon} alt={label} width={34} height={34} className="h-8 w-8 object-contain" />
-        ) : (
-          <span className="text-xl font-black text-[#2155ff]">{icon}</span>
-        )}
+  <Image
+    src={icon}
+    alt={label}
+    width={100}
+    height={100}
+    className="h-35 w-35 object-contain"
+  />
+) : (
+  <span className="text-xl font-black text-[#2155ff]">{icon}</span>
+)}
       </div>
       <p className="mt-2 text-[11px] font-black text-blue-950">{label}</p>
     </Link>
