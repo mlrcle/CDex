@@ -401,14 +401,14 @@ export default function AlbumPage() {
 
     const baseTracks = tracksEditedOnce ? personalTracks : baseAlbum?.tracks ?? [];
 
-    setPersonalTracks([...baseTracks, newTrack.trim()]);
+    setPersonaFconst baseTracks = tracksEditedOnce ? personalTracks : baseAlbum?.tracks ?? [];lTracks([...baseTracks, newTrack.trim()]);
     setTracksEditedOnce(true);
     setNewTrack("");
     showToast("Titre ajouté.");
   }
 
   function updateTrack(index: number, value: string) {
-    const baseTracks = tracksEditedOnce ? personalTracks : baseAlbum.tracks ?? [];
+    const baseTracks = tracksEditedOnce ? personalTracks : baseAlbum?.tracks ?? [];
     const updatedTracks = [...baseTracks];
 
     updatedTracks[index] = value;
@@ -417,7 +417,7 @@ export default function AlbumPage() {
   }
 
   function deleteTrack(index: number) {
-    const baseTracks = tracksEditedOnce ? personalTracks : baseAlbum.tracks ?? [];
+    const baseTracks = tracksEditedOnce ? personalTracks : baseAlbum?.tracks ?? [];
     const updatedTracks = baseTracks.filter((_, trackIndex) => trackIndex !== index);
 
     setPersonalTracks(updatedTracks);
