@@ -401,7 +401,7 @@ export default function AlbumPage() {
 
     const baseTracks = tracksEditedOnce ? personalTracks : baseAlbum?.tracks ?? [];
 
-    setPersonaFconst baseTracks = tracksEditedOnce ? personalTracks : baseAlbum?.tracks ?? [];lTracks([...baseTracks, newTrack.trim()]);
+setPersonalTracks([...baseTracks, newTrack.trim()]);
     setTracksEditedOnce(true);
     setNewTrack("");
     showToast("Titre ajouté.");
