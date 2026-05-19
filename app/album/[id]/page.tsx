@@ -399,7 +399,7 @@ export default function AlbumPage() {
   function addTrack() {
     if (!newTrack.trim()) return;
 
-    const baseTracks = tracksEditedOnce ? personalTracks : baseAlbum.tracks ?? [];
+    const baseTracks = tracksEditedOnce ? personalTracks : baseAlbum?.tracks ?? [];
 
     setPersonalTracks([...baseTracks, newTrack.trim()]);
     setTracksEditedOnce(true);
