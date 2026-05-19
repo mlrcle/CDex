@@ -261,14 +261,19 @@ export default function Home() {
 
 function HeroLatestAlbum({ album }: { album?: Album }) {
   const cover = getAlbumCover(album);
+
   return (
-    <div className="pointer-events-none absolute right-2 top-4 h-[150px] w-[170px]">
+    <div className="absolute right-2 top-4 h-[150px] w-[170px]">
       {album && cover ? (
-        <div className="relative h-full w-full">
+        <Link
+          href={`/album/${album.id}`}
+          className="relative block h-full w-full transition active:scale-95"
+          aria-label={`Voir la fiche de ${album.title}`}
+        >
           <CDCase3D cover={cover} title={album.title} />
-        </div>
+        </Link>
       ) : (
-        <div className="absolute right-6 top-4 h-24 w-24 rounded-full bg-[conic-gradient(from_0deg,#2155ff,#7dd3fc,#ffffff,#ff4b4b,#2155ff)] p-[7px] shadow-[0_20px_50px_rgba(33,85,255,0.25)]">
+        <div className="pointer-events-none absolute right-6 top-4 h-24 w-24 rounded-full bg-[conic-gradient(from_0deg,#2155ff,#7dd3fc,#ffffff,#ff4b4b,#2155ff)] p-[7px] shadow-[0_20px_50px_rgba(33,85,255,0.25)]">
           <div className="flex h-full w-full items-center justify-center rounded-full bg-white">
             <div className="h-7 w-7 rounded-full border-[6px] border-blue-100 bg-white shadow-inner" />
           </div>

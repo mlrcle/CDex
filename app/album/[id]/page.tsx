@@ -1,36 +1,113 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { albums } from "../../data/albums";
+import { rollRarity } from "@/app/lib/rarity";
+
+type Album = {
+  id: string;
+  title?: string;
+  artist?: string;
+  year?: string | number;
+  genre?: string;
+  cover?: string;
+  image?: string;
+  coverUrl?: string;
+  imageUrl?: string;
+  duration?: string;
+  estimatedValue?: string | number;
+  rarity?: string;
+  xp?: number;
+  addedAt?: string;
+  discovered?: boolean;
+  tracks?: string[];
+  source?: string;
+};
 
 const noteOptions = Array.from({ length: 21 }, (_, index) => index * 0.5);
 
+function getAlbumCover(album?: Album) {
+  return album?.cover || album?.image || album?.coverUrl || album?.imageUrl || "";
+}
+
+function isValidRarity(rarity?: string) {
+  return Boolean(
+    rarity &&
+      rarity !== "Non renseigné" &&
+      rarity !== "Non renseignée" &&
+      rarity !== "Rareté inconnue"
+  );
+}
+
+function getDisplayRarity(album: Album, discovered: boolean) {
+  if (isValidRarity(album.rarity)) return album.rarity as string;
+  return discovered ? "Commun" : "Non découvert";
+}
+
+function withDiscoveredRarity(album: Album): Album {
+  if (isValidRarity(album.rarity) && typeof album.xp === "number") {
+    return album;
+  }
+
+  const rarity = rollRarity();
+
+  return {
+    ...album,
+    rarity: rarity.name,
+    xp: rarity.xp,
+  };
+}
+function getRarityImage(rarity?: string) {
+  switch (rarity) {
+    case "Commun":
+      return "/commun.png";
+
+    case "Rare":
+      return "/rare.png";
+
+    case "Très rare":
+      return "/tresrare.png";
+
+    case "Épique":
+      return "/epic.png";
+
+    case "Légendaire":
+      return "/legendaire.png";
+
+    default:
+      return "/commun.png";
+  }
+}
 export default function AlbumPage() {
   const router = useRouter();
   const params = useParams();
-  const albumId = params.id as string;
+  const albumId = String(params.id);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [userAlbums, setUserAlbums] = useState<any[]>([]);
-  const [wishlistAlbums, setWishlistAlbums] = useState<any[]>([]);
-  const [previewAlbum, setPreviewAlbum] = useState<any>(null);
+  const [userAlbums, setUserAlbums] = useState<Album[]>([]);
+  const [wishlistAlbums, setWishlistAlbums] = useState<Album[]>([]);
+  const [previewAlbum, setPreviewAlbum] = useState<Album | null>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
-  const [listenOpen, setListenOpen] = useState(false);
   const [toast, setToast] = useState("");
-
-  const [noteEditing, setNoteEditing] = useState(false);
-  const [descriptionEditing, setDescriptionEditing] = useState(false);
-  const [coverEditing, setCoverEditing] = useState(false);
-
-  const [editingField, setEditingField] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [notePickerOpen, setNotePickerOpen] = useState(false);
 
   const [personalNote, setPersonalNote] = useState("");
   const [personalDescription, setPersonalDescription] = useState("");
+  const [descriptionEditing, setDescriptionEditing] = useState(false);
   const [condition, setCondition] = useState(0);
+
+  const [tracksEditing, setTracksEditing] = useState(false);
+  const [personalTracks, setPersonalTracks] = useState<string[]>([]);
+  const [tracksEditedOnce, setTracksEditedOnce] = useState(false);
+  const [newTrack, setNewTrack] = useState("");
 
   const [editedCover, setEditedCover] = useState("");
   const [editedTitle, setEditedTitle] = useState("");
@@ -39,7 +116,6 @@ export default function AlbumPage() {
   const [editedGenre, setEditedGenre] = useState("");
   const [editedDuration, setEditedDuration] = useState("");
   const [editedValue, setEditedValue] = useState("");
-  const [editedRarity, setEditedRarity] = useState("");
 
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -49,22 +125,18 @@ export default function AlbumPage() {
   }
 
   function goBackSmart() {
-    const savedSearchReturn = sessionStorage.getItem("cdex-search-return");
+    const previousUsefulPage = sessionStorage.getItem("cdex-previous-useful-page");
 
-    if (savedSearchReturn) {
-      const data = JSON.parse(savedSearchReturn);
-      const mode = data.mode === "wishlist" ? "&mode=wishlist" : "";
-
-      router.push(
-        `/add/search?query=${encodeURIComponent(data.query ?? "")}&sort=${
-          data.sort ?? "relevance"
-        }${mode}`
-      );
-
+    if (
+      previousUsefulPage &&
+      !previousUsefulPage.includes("/settings") &&
+      previousUsefulPage !== window.location.pathname
+    ) {
+      router.push(previousUsefulPage);
       return;
     }
 
-    router.back();
+    router.push("/collection");
   }
 
   function handleImageFile(file: File | undefined) {
@@ -75,7 +147,6 @@ export default function AlbumPage() {
     reader.onload = () => {
       if (typeof reader.result === "string") {
         setEditedCover(reader.result);
-        setCoverEditing(false);
         showToast("Pochette modifiée.");
       }
     };
@@ -87,9 +158,23 @@ export default function AlbumPage() {
     const savedUserAlbums = localStorage.getItem("cdex-user-albums");
     const savedWishlist = localStorage.getItem("cdex-wishlist");
     const savedPreviewAlbum = sessionStorage.getItem("cdex-preview-album");
+    const savedFavorites = localStorage.getItem("cdex-favorites");
 
-    if (savedUserAlbums) setUserAlbums(JSON.parse(savedUserAlbums));
+    if (savedUserAlbums) {
+      const parsedAlbums: Album[] = JSON.parse(savedUserAlbums);
+
+      const migratedAlbums = parsedAlbums.map((album) =>
+        isValidRarity(album.rarity) && typeof album.xp === "number"
+          ? album
+          : withDiscoveredRarity(album)
+      );
+
+      localStorage.setItem("cdex-user-albums", JSON.stringify(migratedAlbums));
+      setUserAlbums(migratedAlbums);
+    }
+
     if (savedWishlist) setWishlistAlbums(JSON.parse(savedWishlist));
+    if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
 
     if (savedPreviewAlbum) {
       const parsedPreview = JSON.parse(savedPreviewAlbum);
@@ -97,12 +182,14 @@ export default function AlbumPage() {
     }
   }, [albumId]);
 
-  const allAlbums = [
-    ...userAlbums,
-    ...wishlistAlbums,
-    ...(previewAlbum ? [previewAlbum] : []),
-    ...albums,
-  ];
+  const allAlbums = useMemo(() => {
+    return [
+      ...userAlbums,
+      ...wishlistAlbums,
+      ...(previewAlbum ? [previewAlbum] : []),
+      ...(albums as Album[]),
+    ];
+  }, [userAlbums, wishlistAlbums, previewAlbum]);
 
   const baseAlbum = allAlbums.find((item) => item.id === albumId);
 
@@ -122,6 +209,9 @@ export default function AlbumPage() {
         setPersonalDescription(data.personalDescription ?? "");
         setCondition(data.condition ?? 0);
 
+        setPersonalTracks(data.personalTracks ?? []);
+        setTracksEditedOnce(data.tracksEditedOnce ?? false);
+
         setEditedCover(data.editedCover ?? "");
         setEditedTitle(data.editedTitle ?? "");
         setEditedArtist(data.editedArtist ?? "");
@@ -129,7 +219,6 @@ export default function AlbumPage() {
         setEditedGenre(data.editedGenre ?? "");
         setEditedDuration(data.editedDuration ?? "");
         setEditedValue(data.editedValue ?? "");
-        setEditedRarity(data.editedRarity ?? "");
       } catch {
         localStorage.removeItem(personalStorageKey);
       }
@@ -147,6 +236,8 @@ export default function AlbumPage() {
         personalNote,
         personalDescription,
         condition,
+        personalTracks,
+        tracksEditedOnce,
         editedCover,
         editedTitle,
         editedArtist,
@@ -154,7 +245,6 @@ export default function AlbumPage() {
         editedGenre,
         editedDuration,
         editedValue,
-        editedRarity,
       })
     );
   }, [
@@ -163,6 +253,8 @@ export default function AlbumPage() {
     personalNote,
     personalDescription,
     condition,
+    personalTracks,
+    tracksEditedOnce,
     editedCover,
     editedTitle,
     editedArtist,
@@ -170,27 +262,28 @@ export default function AlbumPage() {
     editedGenre,
     editedDuration,
     editedValue,
-    editedRarity,
   ]);
 
   if (!baseAlbum) {
     return (
-      <main className="mx-auto max-w-md px-5 py-6">
+      <main className="relative mx-auto min-h-screen max-w-md px-5 pb-56 pt-5">
+        <Background />
+
         <button
           onClick={goBackSmart}
-          className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-blue-100 bg-white/90 text-2xl font-black text-[#2155ff] shadow"
+          className="mb-5 flex h-10 w-10 items-center justify-center rounded-2xl border border-blue-100 bg-white text-[2rem] font-black leading-none text-[#2155ff] shadow-[0_10px_25px_rgba(33,85,255,0.12)] transition active:scale-95"
         >
-          ←
+          <span className="-mt-1">‹</span>
         </button>
 
-        <section className="rounded-[2.2rem] border border-blue-100/60 bg-white/80 p-7 text-center shadow">
-          <h1 className="text-3xl font-black text-[#2155ff]">
+        <section className="rounded-[2rem] border border-white/70 bg-white/75 p-6 text-center shadow-xl backdrop-blur-2xl">
+          <h1 className="text-2xl font-black text-blue-950">
             Album introuvable
           </h1>
 
           <Link
             href="/collection"
-            className="mt-6 block rounded-2xl bg-[#2155ff] px-6 py-4 text-center text-lg font-black text-white"
+            className="mt-6 block rounded-2xl bg-[#2155ff] px-6 py-4 text-center text-sm font-black text-white"
           >
             Voir la collection
           </Link>
@@ -199,7 +292,7 @@ export default function AlbumPage() {
     );
   }
 
-  const album = {
+  const album: Album = {
     ...baseAlbum,
     cover: editedCover || baseAlbum.cover,
     title: editedTitle || baseAlbum.title,
@@ -208,90 +301,189 @@ export default function AlbumPage() {
     genre: editedGenre || baseAlbum.genre,
     duration: editedDuration || baseAlbum.duration,
     estimatedValue: editedValue || baseAlbum.estimatedValue,
-    rarity: editedRarity || baseAlbum.rarity,
+    rarity: baseAlbum.rarity,
+    xp: baseAlbum.xp,
   };
 
+  const cover = getAlbumCover(album);
   const isInCollection = userAlbums.some((item) => item.id === albumId);
   const isInWishlist = wishlistAlbums.some((item) => item.id === albumId);
+  const isFavorite = favorites.includes(albumId);
+
+  const displayedRarity = getDisplayRarity(
+    album,
+    isInCollection || Boolean(previewAlbum)
+  );
+
+  const albumStatus = isInCollection
+    ? "Collection"
+    : isInWishlist
+      ? "Wishlist"
+      : "Non découvert";
+
+  const displayedTracks = tracksEditedOnce
+    ? personalTracks
+    : baseAlbum.tracks ?? [];
+
+  function saveUserAlbums(nextAlbums: Album[]) {
+    localStorage.setItem("cdex-user-albums", JSON.stringify(nextAlbums));
+    setUserAlbums(nextAlbums);
+  }
+
+  function saveWishlist(nextWishlist: Album[]) {
+    localStorage.setItem("cdex-wishlist", JSON.stringify(nextWishlist));
+    setWishlistAlbums(nextWishlist);
+  }
+
+  function toggleFavorite() {
+    setFavorites((current) => {
+      const updated = current.includes(albumId)
+        ? current.filter((item) => item !== albumId)
+        : [...current, albumId];
+
+      localStorage.setItem("cdex-favorites", JSON.stringify(updated));
+      return updated;
+    });
+
+    showToast(isFavorite ? "Retiré des favoris." : "Ajouté aux favoris.");
+  }
 
   function toggleWishlist() {
-    const savedWishlist = localStorage.getItem("cdex-wishlist");
-    const currentWishlist = savedWishlist ? JSON.parse(savedWishlist) : [];
+    const alreadyExists = wishlistAlbums.some((item) => item.id === album.id);
 
-    const alreadyExists = currentWishlist.some(
-      (item: any) => item.id === album.id
-    );
+    const updatedWishlist = alreadyExists
+      ? wishlistAlbums.filter((item) => item.id !== album.id)
+      : [...wishlistAlbums, { ...album, source: "wishlist" }];
 
-    let updatedWishlist;
+    saveWishlist(updatedWishlist);
 
-    if (alreadyExists) {
-      updatedWishlist = currentWishlist.filter(
-        (item: any) => item.id !== album.id
-      );
-      showToast(`"${album.title}" retiré de la wishlist.`);
-    } else {
-      updatedWishlist = [...currentWishlist, album];
-      showToast(`"${album.title}" ajouté à la wishlist.`);
-    }
-
-    localStorage.setItem("cdex-wishlist", JSON.stringify(updatedWishlist));
-    setWishlistAlbums(updatedWishlist);
+    showToast(alreadyExists ? "Retiré de la wishlist." : "Ajouté à la wishlist.");
   }
 
   function addPreviewToCollection() {
-    const savedUserAlbums = localStorage.getItem("cdex-user-albums");
-    const currentAlbums = savedUserAlbums ? JSON.parse(savedUserAlbums) : [];
-
-    const alreadyExists = currentAlbums.some(
-      (item: any) => item.id === album.id
-    );
+    const alreadyExists = userAlbums.some((item) => item.id === album.id);
 
     if (alreadyExists) {
-      showToast(`"${album.title}" est déjà dans ta collection.`);
+      showToast("Cet album est déjà dans ta collection.");
       return;
     }
 
-    const updatedAlbums = [...currentAlbums, baseAlbum];
+    const discoveredAlbum = withDiscoveredRarity({
+      ...album,
+      discovered: true,
+      addedAt: album.addedAt || new Date().toLocaleDateString("fr-FR"),
+    });
 
-    localStorage.setItem("cdex-user-albums", JSON.stringify(updatedAlbums));
-    setUserAlbums(updatedAlbums);
+    const updatedAlbums = [...userAlbums, discoveredAlbum];
 
-    showToast(`"${album.title}" a bien été ajouté à ta collection.`);
+    saveUserAlbums(updatedAlbums);
+
+    showToast(
+      `Album ajouté : ${discoveredAlbum.rarity} · +${discoveredAlbum.xp || 0} XP`
+    );
   }
 
   function deleteAlbum() {
-    const savedAlbums = localStorage.getItem("cdex-user-albums");
-    if (!savedAlbums) return;
+    const updatedUserAlbums = userAlbums.filter((item) => item.id !== albumId);
+    const updatedWishlist = wishlistAlbums.filter((item) => item.id !== albumId);
+    const updatedFavorites = favorites.filter((item) => item !== albumId);
 
-    const currentAlbums = JSON.parse(savedAlbums);
-    const updatedAlbums = currentAlbums.filter(
-      (item: any) => item.id !== albumId
-    );
+    localStorage.setItem("cdex-user-albums", JSON.stringify(updatedUserAlbums));
+    localStorage.setItem("cdex-wishlist", JSON.stringify(updatedWishlist));
+    localStorage.setItem("cdex-favorites", JSON.stringify(updatedFavorites));
 
-    localStorage.setItem("cdex-user-albums", JSON.stringify(updatedAlbums));
-    showToast(`"${album.title}" a été supprimé.`);
-
+    showToast("Album supprimé.");
     setTimeout(() => router.push("/collection"), 900);
   }
 
+  function addTrack() {
+    if (!newTrack.trim()) return;
+
+    const baseTracks = tracksEditedOnce ? personalTracks : baseAlbum.tracks ?? [];
+
+    setPersonalTracks([...baseTracks, newTrack.trim()]);
+    setTracksEditedOnce(true);
+    setNewTrack("");
+    showToast("Titre ajouté.");
+  }
+
+  function updateTrack(index: number, value: string) {
+    const baseTracks = tracksEditedOnce ? personalTracks : baseAlbum.tracks ?? [];
+    const updatedTracks = [...baseTracks];
+
+    updatedTracks[index] = value;
+    setPersonalTracks(updatedTracks);
+    setTracksEditedOnce(true);
+  }
+
+  function deleteTrack(index: number) {
+    const baseTracks = tracksEditedOnce ? personalTracks : baseAlbum.tracks ?? [];
+    const updatedTracks = baseTracks.filter((_, trackIndex) => trackIndex !== index);
+
+    setPersonalTracks(updatedTracks);
+    setTracksEditedOnce(true);
+    showToast("Titre supprimé.");
+  }
+
   return (
-    <main className="mx-auto max-w-md px-5 py-6">
+    <main className="relative mx-auto min-h-screen max-w-md overflow-visible px-5 pb-56 pt-5">
+      <Background />
+
       {toast && (
         <div className="fixed left-1/2 top-6 z-[999] w-[90%] max-w-sm -translate-x-1/2 rounded-2xl border border-blue-100 bg-white px-5 py-4 text-center text-sm font-black text-[#2155ff] shadow-2xl">
           {toast}
         </div>
       )}
 
-      <button
-        onClick={goBackSmart}
-        className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-blue-100 bg-white/90 text-2xl font-black text-[#2155ff] shadow"
-      >
-        ←
-      </button>
+      <div className="mb-5 flex items-center justify-between">
+        <button
+          onClick={goBackSmart}
+          className="flex h-10 w-10 items-center justify-center rounded-2xl border border-blue-100 bg-white text-[2rem] font-black leading-none text-[#2155ff] shadow-[0_10px_25px_rgba(33,85,255,0.12)] transition active:scale-95"
+        >
+          <span className="-mt-1">‹</span>
+        </button>
 
-      {!isInCollection && previewAlbum && (
-        <section className="mb-6 rounded-[2rem] border border-yellow-200 bg-yellow-50 p-5 shadow">
-          <p className="text-sm font-black text-yellow-700">
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-blue-100 bg-white/90 text-xl font-black text-[#2155ff] shadow-[0_10px_25px_rgba(33,85,255,0.15)] transition active:scale-95"
+          >
+            …
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 top-[3.25rem] z-50 w-44 rounded-[1.5rem] border border-white/70 bg-white/95 p-2 shadow-[0_18px_45px_rgba(33,85,255,0.18)] backdrop-blur-2xl">
+              <button
+                onClick={() => {
+                  setEditMode(true);
+                  setMenuOpen(false);
+                }}
+                className="w-full rounded-2xl px-4 py-3 text-left text-sm font-black text-[#2155ff] hover:bg-blue-50"
+              >
+                Modifier
+              </button>
+
+              
+
+              {(isInCollection || isInWishlist) && (
+                <button
+                  onClick={() => {
+                    deleteAlbum();
+                    setMenuOpen(false);
+                  }}
+                  className="w-full rounded-2xl px-4 py-3 text-left text-sm font-black text-red-500 hover:bg-red-50"
+                >
+                  Supprimer
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {previewAlbum && !isInCollection && (
+        <section className="mb-5 rounded-[2rem] border border-blue-100 bg-blue-50/80 p-4 shadow-sm">
+          <p className="text-sm font-bold text-[#2155ff]">
             Aperçu uniquement : cet album n’est pas encore dans ta collection.
           </p>
 
@@ -304,217 +496,210 @@ export default function AlbumPage() {
         </section>
       )}
 
-      <section className="overflow-hidden rounded-[2.2rem] border border-blue-100/60 bg-white/80 shadow">
-        <div className="p-5">
-          <div className="relative aspect-square overflow-hidden rounded-[1.8rem] bg-blue-50 shadow-lg">
-            {album.cover ? (
-              <img
-                src={album.cover}
-                alt={album.title}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-100 to-blue-200">
-                <div className="h-20 w-20 rounded-full border-4 border-blue-400 opacity-60" />
-              </div>
-            )}
+      <section className="overflow-hidden rounded-[2.4rem] border border-white/70 bg-white/75 p-4 shadow-[0_20px_60px_rgba(33,85,255,0.14)] backdrop-blur-2xl">
+        <AlbumCoverVisual
+  cover={cover}
+  title={album.title || "Album"}
+  rarityFrame={getRarityImage(displayedRarity)}
+  isFavorite={isFavorite}
+  isInWishlist={isInWishlist}
+  toggleFavorite={toggleFavorite}
+  toggleWishlist={toggleWishlist}
+/>
+
+        <div className="px-2 pb-2 pt-6">
+          <div className="flex justify-end">
+            <p className="rounded-full bg-blue-50 px-3 py-1 text-[10px] font-black uppercase text-[#2155ff]">
+              {displayedRarity}
+            </p>
+          </div>
+
+          <h1 className="-mt-7 text-[2.7rem] font-black leading-[0.9] tracking-tight text-[#2155ff]">
+            {album.title || "Album inconnu"}
+          </h1>
+
+          <p className="mt-3 text-lg font-black text-blue-950">
+            {album.artist || "Artiste inconnu"}
+          </p>
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <InfoCard label="Date" value={album.year || "—"} />
+            <InfoCard label="Genre" value={album.genre || "Non renseigné"} />
+            <InfoCard label="Durée" value={album.duration || "Non renseignée"} />
+            <InfoCard
+              label="Valeur"
+              value={
+                album.estimatedValue !== undefined && album.estimatedValue !== ""
+                  ? `${album.estimatedValue} €`.replace("€ €", "€")
+                  : "Non estimée"
+              }
+            />
+
+            <div className="col-span-2">
+              <InfoCard label="Statut" value={albumStatus} centered />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {editMode && (
+        <section className="mt-6 rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-[0_15px_45px_rgba(33,85,255,0.12)] backdrop-blur-2xl">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-black text-[#2155ff]">Modifier</h2>
 
             <button
-              onClick={toggleWishlist}
-              className={`absolute bottom-4 right-4 flex h-12 w-12 items-center justify-center rounded-full border text-2xl font-black shadow-xl ${
-                isInWishlist
-                  ? "border-red-200 bg-red-50 text-red-500"
-                  : "border-blue-100 bg-white/90 text-blue-400"
-              }`}
+              onClick={() => setEditMode(false)}
+              className="rounded-full bg-blue-50 px-4 py-2 text-xs font-black text-[#2155ff]"
             >
-              ♥
-            </button>
-
-            <button
-              onClick={() => setCoverEditing(!coverEditing)}
-              className="absolute bottom-4 left-4 flex h-12 w-12 items-center justify-center rounded-full border border-blue-100 bg-white/90 text-xl font-black text-[#2155ff] shadow-xl"
-            >
-              ✎
+              Fermer
             </button>
           </div>
 
-          {coverEditing && (
-            <div className="mt-4 rounded-[2rem] border border-blue-100 bg-blue-50/70 p-4">
-              <h2 className="text-lg font-black text-[#2155ff]">
-                Modifier la pochette
-              </h2>
+          <div className="mt-5 grid gap-3">
+            <Input label="Titre" value={editedTitle} setValue={setEditedTitle} />
+            <Input label="Artiste" value={editedArtist} setValue={setEditedArtist} />
+            <Input label="Date" value={editedYear} setValue={setEditedYear} />
+            <Input label="Genre" value={editedGenre} setValue={setEditedGenre} />
+            <Input label="Durée" value={editedDuration} setValue={setEditedDuration} />
+            <Input label="Valeur estimée" value={editedValue} setValue={setEditedValue} />
+          </div>
 
-              <div className="mt-4 grid gap-3">
-                <button
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="rounded-2xl bg-[#2155ff] px-5 py-3 text-sm font-black text-white"
-                >
-                  Prendre une photo
-                </button>
+          <div className="mt-5 rounded-[1.6rem] border border-blue-100 bg-blue-50/70 p-4">
+            <h3 className="text-lg font-black text-[#2155ff]">
+              Modifier la pochette
+            </h3>
 
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="rounded-2xl border border-blue-200 bg-white px-5 py-3 text-sm font-black text-[#2155ff]"
-                >
-                  Choisir depuis fichiers / photos
-                </button>
+            <div className="mt-4 grid gap-3">
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                className="rounded-2xl bg-[#2155ff] px-5 py-3 text-sm font-black text-white"
+              >
+                Prendre une photo
+              </button>
 
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(event) =>
-                    handleImageFile(event.target.files?.[0])
-                  }
-                />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-2xl border border-blue-200 bg-white px-5 py-3 text-sm font-black text-[#2155ff]"
+              >
+                Choisir depuis fichiers / photos
+              </button>
 
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(event) =>
-                    handleImageFile(event.target.files?.[0])
-                  }
-                />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(event) => handleImageFile(event.target.files?.[0])}
+              />
 
-                <Input
-                  label="URL de la pochette"
-                  value={editedCover}
-                  setValue={setEditedCover}
-                  placeholder="Colle une URL d’image"
-                />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => handleImageFile(event.target.files?.[0])}
+              />
 
-                <button
-                  onClick={() => {
-                    setEditedCover("");
-                    setCoverEditing(false);
-                    showToast("Pochette réinitialisée.");
-                  }}
-                  className="rounded-2xl border border-red-100 bg-red-50 px-5 py-3 text-sm font-black text-red-500"
-                >
-                  Réinitialiser la pochette
-                </button>
-              </div>
+              <Input
+                label="URL de la pochette"
+                value={editedCover}
+                setValue={setEditedCover}
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="mt-6 grid grid-cols-2 gap-3">
+        <div className="rounded-[2rem] border border-white/70 bg-white/75 p-4 shadow-[0_15px_45px_rgba(33,85,255,0.12)] backdrop-blur-2xl">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#2155ff]">
+            Ma note
+          </p>
+
+          <button
+            onClick={() => setNotePickerOpen(!notePickerOpen)}
+            className="mt-3 w-full rounded-[1.4rem] bg-blue-50/70 px-4 py-4 text-left text-2xl font-black text-blue-950 transition active:scale-95"
+          >
+            {personalNote || "Non noté"}
+          </button>
+
+          {notePickerOpen && (
+            <div className="mt-4 max-h-44 snap-y overflow-y-auto rounded-[1.4rem] border border-blue-100 bg-blue-50/70 p-2">
+              <button
+                onClick={() => {
+                  setPersonalNote("");
+                  setNotePickerOpen(false);
+                  showToast("Note retirée.");
+                }}
+                className="mb-2 w-full rounded-2xl bg-white px-4 py-3 text-sm font-black text-[#2155ff]"
+              >
+                Non noté
+              </button>
+
+              {noteOptions.map((value) => {
+                const note = `${value}/10`;
+
+                return (
+                  <button
+                    key={value}
+                    onClick={() => {
+                      setPersonalNote(note);
+                      setNotePickerOpen(false);
+                      showToast("Note enregistrée.");
+                    }}
+                    className={`mb-2 w-full rounded-2xl px-4 py-3 text-sm font-black transition ${
+                      personalNote === note
+                        ? "bg-[#2155ff] text-white"
+                        : "bg-white text-[#2155ff]"
+                    }`}
+                  >
+                    {note}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
 
-        <div className="px-7 pb-7">
-          <EditableTitle
-            value={album.rarity}
-            baseValue={baseAlbum.rarity}
-            editedValue={editedRarity}
-            setEditedValue={setEditedRarity}
-            field="rarity"
-            editingField={editingField}
-            setEditingField={setEditingField}
-            label="Rareté"
-            small
-          />
+        <div className="rounded-[2rem] border border-white/70 bg-white/75 p-4 shadow-[0_15px_45px_rgba(33,85,255,0.12)] backdrop-blur-2xl">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#2155ff]">
+            État CD
+          </p>
 
-          <EditableTitle
-            value={album.title}
-            baseValue={baseAlbum.title}
-            editedValue={editedTitle}
-            setEditedValue={setEditedTitle}
-            field="title"
-            editingField={editingField}
-            setEditingField={setEditingField}
-            label="Titre"
-            big
-          />
+          <p className="mt-3 text-2xl font-black text-blue-950">
+            {condition === 0 ? "—" : `${condition}/5`}
+          </p>
 
-          <EditableTitle
-            value={album.artist}
-            baseValue={baseAlbum.artist}
-            editedValue={editedArtist}
-            setEditedValue={setEditedArtist}
-            field="artist"
-            editingField={editingField}
-            setEditingField={setEditingField}
-            label="Artiste"
-          />
-
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <EditableInfo label="Date" value={String(album.year)} baseValue={String(baseAlbum.year)} editedValue={editedYear} setEditedValue={setEditedYear} field="year" editingField={editingField} setEditingField={setEditingField} />
-            <EditableInfo label="Genre" value={album.genre} baseValue={baseAlbum.genre} editedValue={editedGenre} setEditedValue={setEditedGenre} field="genre" editingField={editingField} setEditingField={setEditingField} />
-            <EditableInfo label="Durée" value={album.duration} baseValue={baseAlbum.duration} editedValue={editedDuration} setEditedValue={setEditedDuration} field="duration" editingField={editingField} setEditingField={setEditingField} />
-            <EditableInfo label="Valeur" value={album.estimatedValue} baseValue={baseAlbum.estimatedValue} editedValue={editedValue} setEditedValue={setEditedValue} field="value" editingField={editingField} setEditingField={setEditingField} />
-            <Info label="Ajouté le" value={album.addedAt} />
-          </div>
+          <StarRating value={condition} onChange={setCondition} />
         </div>
       </section>
 
-      <section className="mt-6 rounded-[2rem] border border-blue-100/60 bg-white/80 p-6 shadow-lg">
-        <h2 className="text-2xl font-black text-[#2155ff]">Titres</h2>
-
-        <div className="mt-4 flex flex-col gap-2">
-          {(baseAlbum.tracks ?? []).length === 0 ? (
-            <p className="text-sm font-bold text-[#5e6b85]">
-              Aucun titre renseigné pour le moment.
+      <section className="mt-6 rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-[0_15px_45px_rgba(33,85,255,0.12)] backdrop-blur-2xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#2155ff]">
+              Description
             </p>
-          ) : (
-            baseAlbum.tracks.map((track: string, index: number) => (
-              <div
-                key={track}
-                className="rounded-2xl bg-blue-50 px-4 py-3 text-sm font-bold text-[#071f4f]"
-              >
-                {index + 1}. {track}
-              </div>
-            ))
-          )}
-        </div>
-      </section>
 
-      <section className="mt-6 rounded-[2rem] border border-blue-100/60 bg-white/80 p-6 shadow-lg">
-        <h2 className="text-2xl font-black text-[#2155ff]">Ma note</h2>
-
-        {noteEditing ? (
-          <div className="mt-4">
-            <select
-              value={personalNote}
-              onChange={(event) => setPersonalNote(event.target.value)}
-              className="w-full rounded-2xl border border-blue-100 bg-white px-5 py-4 text-lg font-black text-[#2155ff] outline-none"
-            >
-              <option value="">Non noté</option>
-              {noteOptions.map((value) => (
-                <option key={value} value={`${value}/10`}>
-                  {value}/10
-                </option>
-              ))}
-            </select>
-
-            <button
-              onClick={() => {
-                setNoteEditing(false);
-                showToast("Note enregistrée.");
-              }}
-              className="mt-3 w-full rounded-2xl bg-[#2155ff] px-5 py-3 text-sm font-black text-white"
-            >
-              Valider la note
-            </button>
+            <h2 className="mt-1 text-2xl font-black text-blue-950">
+              Avis personnel
+            </h2>
           </div>
-        ) : (
+
           <button
-            onClick={() => setNoteEditing(true)}
-            className="mt-4 w-full rounded-2xl border border-blue-100 bg-blue-50 px-5 py-5 text-left"
+            onClick={() => setDescriptionEditing(!descriptionEditing)}
+            className="transition active:scale-90"
           >
-            <p className="text-sm font-bold text-[#5e6b85]">
-              Clique pour modifier
-            </p>
-
-            <p className="mt-1 text-3xl font-black text-[#2155ff]">
-              {personalNote || "Non noté"}
-            </p>
+            <Image
+              src="/pen.png"
+              alt="Modifier"
+              width={42}
+              height={42}
+              className="object-contain"
+            />
           </button>
-        )}
-
-        <h3 className="mt-6 text-xl font-black text-[#2155ff]">
-          Description personnelle
-        </h3>
+        </div>
 
         {descriptionEditing ? (
           <div className="mt-4">
@@ -533,212 +718,278 @@ export default function AlbumPage() {
               }}
               className="mt-3 w-full rounded-2xl bg-[#2155ff] px-5 py-3 text-sm font-black text-white"
             >
-              Valider la description
+              Valider
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setDescriptionEditing(true)}
-            className="mt-4 w-full rounded-2xl border border-blue-100 bg-blue-50 px-5 py-5 text-left"
-          >
-            <p className="text-sm font-bold text-[#5e6b85]">
-              Clique pour modifier
-            </p>
-
-            <p className="mt-2 whitespace-pre-line text-sm font-bold leading-6 text-[#071f4f]">
-              {personalDescription || "Aucune description personnelle."}
-            </p>
-          </button>
+          <p className="mt-4 whitespace-pre-line rounded-[1.5rem] bg-blue-50/70 p-4 text-sm font-bold leading-6 text-[#071f4f]">
+            {personalDescription || "Aucune description personnelle."}
+          </p>
         )}
-
-        <p className="mt-3 text-xs font-bold text-blue-400">
-          Sauvegarde automatique sur cet appareil.
-        </p>
       </section>
 
-      <section className="mt-6 rounded-[2rem] border border-blue-100/60 bg-white/80 p-6 shadow-lg">
-        <h2 className="text-2xl font-black text-[#2155ff]">État du CD</h2>
+      <section className="mt-6 rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-[0_15px_45px_rgba(33,85,255,0.12)] backdrop-blur-2xl">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#2155ff]">
+            Titres
+          </p>
 
-        <div className="mt-5 flex flex-wrap gap-2">
-          {[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((value) => (
-            <button
-              key={value}
-              onClick={() => setCondition(value)}
-              className={`rounded-2xl border px-3 py-2 text-sm font-black ${
-                condition === value
-                  ? "border-yellow-300 bg-yellow-100 text-yellow-600"
-                  : "border-blue-100 bg-white text-blue-500"
-              }`}
-            >
-              {value}★
-            </button>
-          ))}
+          <button
+            onClick={() => setTracksEditing(!tracksEditing)}
+            className="transition active:scale-90"
+          >
+            <Image
+              src="/pen.png"
+              alt="Modifier les titres"
+              width={42}
+              height={42}
+              className="object-contain"
+            />
+          </button>
         </div>
 
-        <p className="mt-4 text-lg font-black text-[#071f4f]">
-          État actuel : {condition === 0 ? "Non noté" : `${condition}/5`}
-        </p>
-      </section>
+        {tracksEditing && (
+          <div className="mt-4 rounded-[1.5rem] bg-blue-50/70 p-3">
+            <div className="flex gap-2">
+              <input
+                value={newTrack}
+                onChange={(event) => setNewTrack(event.target.value)}
+                placeholder="Nom du titre..."
+                className="min-w-0 flex-1 rounded-2xl border border-blue-100 bg-white px-4 py-3 text-sm font-bold text-blue-950 outline-none"
+              />
 
-      <section className="relative mt-6 rounded-[2rem] border border-blue-100/60 bg-white/80 p-6 shadow-lg">
-        <button
-          onClick={() => setListenOpen(!listenOpen)}
-          className="w-full rounded-2xl bg-[#2155ff] px-6 py-4 text-center text-lg font-black text-white shadow"
-        >
-          Écouter en streaming
-        </button>
-
-        {listenOpen && (
-          <div className="mt-4 rounded-3xl border border-blue-100 bg-white p-4 shadow-xl">
-            <div className="flex flex-col gap-3">
-              <button className="rounded-2xl bg-green-50 px-5 py-3 font-bold text-green-700">
-                Spotify
-              </button>
-
-              <button className="rounded-2xl bg-purple-50 px-5 py-3 font-bold text-purple-700">
-                Deezer
+              <button
+                onClick={addTrack}
+                className="rounded-2xl bg-[#2155ff] px-4 py-3 text-sm font-black text-white"
+              >
+                +
               </button>
             </div>
           </div>
         )}
 
-        {isInCollection && (
-          <button
-            onClick={deleteAlbum}
-            className="mt-4 w-full rounded-2xl border border-red-100 bg-red-50 px-6 py-4 text-center text-lg font-black text-red-500"
-          >
-            Supprimer l’album
-          </button>
-        )}
+        <div className="mt-4 flex flex-col gap-2">
+          {displayedTracks.length === 0 ? (
+            <p className="rounded-[1.5rem] bg-blue-50/70 p-4 text-sm font-bold text-[#5e6b85]">
+              Aucun titre renseigné pour le moment.
+            </p>
+          ) : (
+            displayedTracks.map((track, index) => (
+              <div
+                key={`${track}-${index}`}
+                className="flex items-center justify-between gap-3 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-bold text-[#071f4f]"
+              >
+                {tracksEditing ? (
+                  <input
+                    value={track}
+                    onChange={(event) => updateTrack(index, event.target.value)}
+                    className="min-w-0 flex-1 bg-transparent outline-none"
+                  />
+                ) : (
+                  <span>
+                    {index + 1}. {track}
+                  </span>
+                )}
+
+                {tracksEditing && (
+                  <button
+                    onClick={() => deleteTrack(index)}
+                    className="shrink-0 rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-500"
+                  >
+                    Suppr.
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
       </section>
     </main>
   );
 }
 
-function EditableTitle({
-  value,
-  baseValue,
-  editedValue,
-  setEditedValue,
-  field,
-  editingField,
-  setEditingField,
-  label,
-  big,
-  small,
-}: any) {
-  const isEditing = editingField === field;
+function AlbumCoverVisual({
+  cover,
+  title,
+  rarityFrame,
+  isInWishlist,
+  isFavorite,
+  toggleWishlist,
+  toggleFavorite,
+}: {
+  cover: string;
+  title: string;
+  rarityFrame: string;
+  isInWishlist: boolean;
+  isFavorite: boolean;
+  toggleWishlist: () => void;
+  toggleFavorite: () => void;
+}) {
+  
+  // Image cover à l'intérieur de la fenêtre
+  const COVER_X = 13;
+  const COVER_Y = 6;
+  const COVER_W = 60;
+  const COVER_H = 80;
 
-  if (isEditing) {
-    return (
-      <div className="mt-3">
-        <Input
-          label={label}
-          value={editedValue}
-          setValue={setEditedValue}
-          placeholder={baseValue}
-        />
-
-        <button
-          onClick={() => setEditingField("")}
-          className="mt-2 rounded-2xl bg-[#2155ff] px-4 py-2 text-xs font-black text-white"
-        >
-          Valider
-        </button>
-      </div>
-    );
-  }
+  // PNG rareté
+  const PNG_X = 0;
+  const PNG_Y = -15;
+  const PNG_W = 140;
+  const PNG_H = 125;
 
   return (
-    <div className="mt-3 flex items-start gap-2">
-      <div className="flex-1">
-        <p
-          className={
-            big
-              ? "text-5xl font-black leading-none text-[#2155ff]"
-              : small
-              ? "text-sm font-bold uppercase tracking-widest text-blue-500"
-              : "text-xl font-bold text-[#071f4f]"
-          }
-        >
-          {value}
-        </p>
+    <div className="relative aspect-square overflow-hidden rounded-[2rem] bg-transparent">
+      {/* FENÊTRE COVER */}
+      <div
+  className="
+    absolute
+    left-[0%]
+    top-[0%]
+    w-[100%]
+    h-[100%]
+    z-[1]
+    overflow-hidden
+  "
+>
+        {cover ? (
+          <img
+            src={cover}
+            alt={title}
+            style={{
+              left: `${COVER_X}%`,
+              top: `${COVER_Y}%`,
+              width: `${COVER_W}%`,
+              height: `${COVER_H}%`,
+            }}
+            className="absolute object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-blue-100">
+            💿
+          </div>
+        )}
       </div>
 
+      {/* PNG RARETÉ */}
+      <img
+        src={rarityFrame}
+        alt=""
+        style={{
+          left: `${PNG_X}%`,
+          top: `${PNG_Y}%`,
+          width: `${PNG_W}%`,
+          height: `${PNG_H}%`,
+        }}
+        className="pointer-events-none absolute z-[5] object-fill"
+      />
+
       <button
-        onClick={() => setEditingField(field)}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-sm font-black text-[#2155ff]"
+        onClick={toggleWishlist}
+        className="absolute bottom-[-1%] left-[5%] z-[20] transition active:scale-90"
       >
-        ✎
+        <Image
+          src={isInWishlist ? "/etoile-appuye.png" : "/etoile.png"}
+          alt="Wishlist"
+          width={44}
+          height={44}
+          className="object-contain"
+        />
+      </button>
+
+      <button
+        onClick={toggleFavorite}
+        className="absolute bottom-[-1%] right-[5%] z-[20] transition active:scale-90"
+      >
+        <Image
+          src={isFavorite ? "/coeur-appuye.png" : "/coeur.png"}
+          alt="Favori"
+          width={44}
+          height={44}
+          className="object-contain"
+        />
       </button>
     </div>
   );
 }
+      
 
-function EditableInfo({
-  label,
+function StarRating({
   value,
-  baseValue,
-  editedValue,
-  setEditedValue,
-  field,
-  editingField,
-  setEditingField,
-}: any) {
-  const isEditing = editingField === field;
-
-  if (isEditing) {
-    return (
-      <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-        <Input
-          label={label}
-          value={editedValue}
-          setValue={setEditedValue}
-          placeholder={baseValue}
-        />
-
-        <button
-          onClick={() => setEditingField("")}
-          className="mt-2 rounded-2xl bg-[#2155ff] px-4 py-2 text-xs font-black text-white"
-        >
-          Valider
-        </button>
-      </div>
-    );
-  }
-
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
   return (
-    <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-[#5e6b85]">
-            {label}
-          </p>
+    <div className="mt-4 flex gap-1">
+      {[1, 2, 3, 4, 5].map((star) => {
+        const fillPercent =
+          value >= star ? 100 : value >= star - 0.5 ? 50 : 0;
 
-          <p className="mt-1 text-sm font-black text-[#071f4f]">
-            {value}
-          </p>
-        </div>
+        return (
+          <button
+            key={star}
+            type="button"
+            onClick={(event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              const clickX = event.clientX - rect.left;
+              const nextValue = clickX < rect.width / 2 ? star - 0.5 : star;
+              onChange(nextValue);
+            }}
+            className="relative h-6 w-6 shrink-0 text-[24px] leading-none"
+          >
+            <span className="absolute left-0 top-0 text-blue-100">★</span>
 
-        <button
-          onClick={() => setEditingField(field)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-blue-100 bg-white text-xs font-black text-[#2155ff]"
-        >
-          ✎
-        </button>
-      </div>
+            <span
+              className="absolute left-0 top-0 overflow-hidden text-yellow-400"
+              style={{ width: `${fillPercent}%` }}
+            >
+              <span className="block w-6">★</span>
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Background() {
   return (
-    <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-      <p className="text-xs font-bold uppercase tracking-wide text-[#5e6b85]">
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#f4f8ff]">
+      <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#2155ff]/20 blur-3xl" />
+      <div className="absolute -right-24 top-64 h-80 w-80 rounded-full bg-cyan-300/25 blur-3xl" />
+      <div className="absolute bottom-0 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-[#ff4b4b]/10 blur-3xl" />
+    </div>
+  );
+}
+
+function InfoCard({
+  label,
+  value,
+  centered = false,
+}: {
+  label: string;
+  value: string | number;
+  centered?: boolean;
+}) {
+  return (
+    <div className="rounded-[1.5rem] border border-white/70 bg-white/70 p-4 shadow-sm backdrop-blur-xl">
+      <p
+        className={`text-[10px] font-black uppercase tracking-wide text-blue-950/45 ${
+          centered ? "text-center" : ""
+        }`}
+      >
         {label}
       </p>
 
-      <p className="mt-1 text-sm font-black text-[#071f4f]">{value}</p>
+      <p
+        className={`mt-1 text-sm font-black leading-5 text-blue-950 ${
+          centered ? "text-center" : ""
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -747,24 +998,21 @@ function Input({
   label,
   value,
   setValue,
-  placeholder,
 }: {
   label: string;
   value: string;
   setValue: (value: string) => void;
-  placeholder?: string;
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-black text-[#2155ff]">
+      <span className="text-[10px] font-black uppercase tracking-wide text-blue-950/45">
         {label}
       </span>
 
       <input
         value={value}
-        placeholder={placeholder}
         onChange={(event) => setValue(event.target.value)}
-        className="w-full rounded-2xl border border-blue-100 bg-white px-5 py-4 text-sm font-semibold text-[#071f4f] outline-none placeholder:text-slate-400 focus:border-blue-400"
+        className="mt-1 w-full rounded-2xl border border-blue-100 bg-white/90 px-4 py-3 text-sm font-bold text-blue-950 outline-none focus:border-[#2155ff]"
       />
     </label>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,6 +10,36 @@ const LOGO_SIZE = 75;
 export default function Navbar() {
   const pathname = usePathname();
 
+  /* =========================
+     SAVE LAST USEFUL PAGE
+  ========================= */
+  useEffect(() => {
+    // Ignore settings page
+    if (pathname.includes("/settings")) return;
+
+    const currentUsefulPage = sessionStorage.getItem(
+      "cdex-current-useful-page"
+    );
+
+    if (
+      currentUsefulPage &&
+      currentUsefulPage !== pathname
+    ) {
+      sessionStorage.setItem(
+        "cdex-previous-useful-page",
+        currentUsefulPage
+      );
+    }
+
+    sessionStorage.setItem(
+      "cdex-current-useful-page",
+      pathname
+    );
+  }, [pathname]);
+
+  /* =========================
+     PAGE TITLE
+  ========================= */
   const pageTitle =
     pathname === "/"
       ? "Accueil"
@@ -26,7 +57,9 @@ export default function Navbar() {
                   ? "Favoris"
                   : pathname.startsWith("/album")
                     ? "Fiche album"
-                    : "CDex";
+                    : pathname.startsWith("/settings")
+                      ? "Réglages"
+                      : "CDex";
 
   return (
     <>
