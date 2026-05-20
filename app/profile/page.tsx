@@ -322,7 +322,7 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section className="mt-5 grid grid-cols-3 gap-3">
+      <section className="mt-5 grid grid-cols-2 gap-3">
         <StatCard label="CD ajoutés" value={totalAlbums.toString()} />
         <StatCard label="Niveau" value={levelData.level.toString()} />
         <StatCard label="Durée totale" value={`${totalDuration} min`} />
