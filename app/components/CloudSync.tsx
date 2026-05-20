@@ -55,10 +55,26 @@ export default function CloudSync() {
       ) {
         lastCloudUpdatedAt.current = data.updated_at;
 
-        await loadCloudData();
+        const isEditing =
+  document.activeElement instanceof HTMLInputElement ||
+  document.activeElement instanceof HTMLTextAreaElement ||
+  document.activeElement instanceof HTMLSelectElement ||
+  document.body.dataset.editing === "true";
 
-        window.location.reload();
-        return;
+const protectedPage =
+  window.location.pathname.startsWith("/album") ||
+  window.location.pathname.startsWith("/add") ||
+  window.location.pathname.startsWith("/settings") ||
+  window.location.pathname.startsWith("/auth");
+
+if (isEditing || protectedPage) {
+  return;
+}
+
+await loadCloudData();
+
+window.location.reload();
+return;
       }
 
       lastCloudUpdatedAt.current = data.updated_at;
