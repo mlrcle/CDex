@@ -288,6 +288,86 @@ export default function AlbumPage() {
     editedValue,
   ]);
 
+useEffect(() => {
+  if (!isLoaded || !baseAlbum) return;
+
+  function isSameAlbum(item: Album) {
+    return (
+      String(item.id) === String(albumId) ||
+      String(item.id) === String(baseAlbum.id) ||
+      String(item.id) === String(baseAlbum.musicBrainzId || "") ||
+      String(item.musicBrainzId || "") === String(albumId) ||
+      String(item.musicBrainzId || "") === String(baseAlbum.id)
+    );
+  }
+
+  const updatedUserAlbums = userAlbums.map((item) => {
+    if (!isSameAlbum(item)) return item;
+
+    return {
+      ...item,
+      cover: editedCover || item.cover,
+      title: editedTitle || item.title,
+      artist: editedArtist || item.artist,
+      year: editedYear || item.year,
+      genre: editedGenre || item.genre,
+      duration: editedDuration || item.duration,
+      estimatedValue: editedValue || item.estimatedValue,
+    };
+  });
+
+  const updatedWishlistAlbums = wishlistAlbums.map((item) => {
+    if (!isSameAlbum(item)) return item;
+
+    return {
+      ...item,
+      cover: editedCover || item.cover,
+      title: editedTitle || item.title,
+      artist: editedArtist || item.artist,
+      year: editedYear || item.year,
+      genre: editedGenre || item.genre,
+      duration: editedDuration || item.duration,
+      estimatedValue: editedValue || item.estimatedValue,
+    };
+  });
+
+  const userChanged =
+    JSON.stringify(updatedUserAlbums) !== JSON.stringify(userAlbums);
+
+  const wishlistChanged =
+    JSON.stringify(updatedWishlistAlbums) !== JSON.stringify(wishlistAlbums);
+
+  if (userChanged) {
+    localStorage.setItem(
+      "cdex-user-albums",
+      JSON.stringify(updatedUserAlbums)
+    );
+
+    setUserAlbums(updatedUserAlbums);
+  }
+
+  if (wishlistChanged) {
+    localStorage.setItem(
+      "cdex-wishlist",
+      JSON.stringify(updatedWishlistAlbums)
+    );
+
+    setWishlistAlbums(updatedWishlistAlbums);
+  }
+}, [
+  isLoaded,
+  baseAlbum,
+  albumId,
+  userAlbums,
+  wishlistAlbums,
+  editedCover,
+  editedTitle,
+  editedArtist,
+  editedYear,
+  editedGenre,
+  editedDuration,
+  editedValue,
+]);
   if (!baseAlbum) {
     return (
       <main className="relative mx-auto min-h-screen max-w-md px-5 pb-56 pt-5">

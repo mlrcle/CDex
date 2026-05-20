@@ -165,23 +165,33 @@ export default function ProfilePage() {
       }) as Partial<UserAlbum> | undefined;
 
       return {
-        ...matchingBase,
-        ...ownedAlbum,
-        genre:
-  normalizeValue(matchingBase?.genre) !== "Non renseigné"
-    ? matchingBase?.genre
-    : ownedAlbum.genre,
-        duration:
-          normalizeValue(ownedAlbum.duration) !== "Non renseigné"
-            ? ownedAlbum.duration
-            : matchingBase?.duration || ownedAlbum.duration,
-        estimatedValue:
-          normalizeValue(ownedAlbum.estimatedValue) !== "Non renseigné"
-            ? ownedAlbum.estimatedValue
-            : matchingBase?.estimatedValue || ownedAlbum.estimatedValue,
-        cover: ownedAlbum.cover || matchingBase?.cover || "",
-        year: ownedAlbum.year || matchingBase?.year || 0,
-      } as UserAlbum;
+  ...matchingBase,
+  ...ownedAlbum,
+
+  genre:
+    normalizeValue(ownedAlbum.genre) !== "Non renseigné"
+      ? ownedAlbum.genre
+      : normalizeValue(matchingBase?.genre) !== "Non renseigné"
+        ? matchingBase?.genre || ""
+        : "",
+
+  duration:
+    normalizeValue(ownedAlbum.duration) !== "Non renseigné"
+      ? ownedAlbum.duration
+      : normalizeValue(matchingBase?.duration) !== "Non renseigné"
+        ? matchingBase?.duration || ""
+        : (ownedAlbum as any).length || "",
+
+  estimatedValue:
+    normalizeValue(ownedAlbum.estimatedValue) !== "Non renseigné"
+      ? ownedAlbum.estimatedValue
+      : normalizeValue(matchingBase?.estimatedValue) !== "Non renseigné"
+        ? matchingBase?.estimatedValue || ""
+        : (ownedAlbum as any).value || "",
+
+  cover: ownedAlbum.cover || matchingBase?.cover || "",
+  year: ownedAlbum.year || matchingBase?.year || 0,
+} as UserAlbum;
     });
   }, [rawOwnedAlbums]);
 
@@ -204,21 +214,28 @@ export default function ProfilePage() {
   const levelData = useMemo(() => getLevelFromXp(totalXp), [totalXp]);
 
   const totalDuration = useMemo(() => {
-    return ownedAlbums.reduce((total, album) => {
-      const value = parseInt(String(album.duration).replace(/\D/g, ""));
-      return total + (Number.isNaN(value) ? 0 : value);
-    }, 0);
-  }, [ownedAlbums]);
+  return ownedAlbums.reduce((total, album) => {
+    return total + getDurationMinutes(album.duration);
+  }, 0);
+}, [ownedAlbums]);
 
-  const totalValue = useMemo(() => {
-    return ownedAlbums.reduce((total, album) => {
-      const value = parseFloat(String(album.estimatedValue).replace(",", "."));
-      return total + (Number.isNaN(value) ? 0 : value);
-    }, 0);
-  }, [ownedAlbums]);
+const totalValue = useMemo(() => {
+  return ownedAlbums.reduce((total, album) => {
+    return total + getEstimatedValueNumber(album.estimatedValue);
+  }, 0);
+}, [ownedAlbums]);
+const statsAlbums = useMemo(() => {
+  return ownedAlbums;
+}, [ownedAlbums]);
+const genreStats = useMemo(
+  () => getGenreStats(statsAlbums),
+  [statsAlbums]
+);
 
-  const genreStats = useMemo(() => getGenreStats(albums), [albums]);
-  const rarityStats = useMemo(() => getRarityStats(ownedAlbums), [ownedAlbums]);
+const rarityStats = useMemo(
+  () => getRarityStats(statsAlbums),
+  [statsAlbums]
+);
   const evolutionStats = useMemo(
     () => getEvolutionStats(rawOwnedAlbums),
     [rawOwnedAlbums]
@@ -236,10 +253,6 @@ export default function ProfilePage() {
     objective > 0
       ? Math.min(100, Math.round((totalAlbums / objective) * 100))
       : 0;
-
-  const completedAchievements = achievements.filter(
-    (achievement) => achievement.completed
-  ).length;
 
   return (
     <main className="mx-auto max-w-md px-5 pb-28 pt-6">
@@ -522,37 +535,27 @@ export default function ProfilePage() {
           className="rounded-[2rem] border border-blue-100 bg-white p-4 text-center shadow-[0_8px_25px_rgba(33,85,255,0.08)] transition active:scale-[0.98]"
         >
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50">
-            <img
-              src="/etoile.png"
-              alt="Wishlist"
-              className="h-8 w-8 object-contain"
-            />
+            <img src="/etoile.png" alt="Wishlist" className="h-8 w-8 object-contain" />
           </div>
           <p className="mt-3 text-sm font-black text-[#2155ff]">Wishlist</p>
         </Link>
-<Link
-  href="/achievements"
-  className="rounded-[2rem] border border-blue-100 bg-white p-4 text-center shadow-[0_8px_25px_rgba(33,85,255,0.08)] transition active:scale-[0.98]"
->
-  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50">
-    <img
-      src="/objectif.png"
-      alt="Objectifs"
-      className="h-20 w-20 object-contain"
-    />
-  </div>
-  <p className="mt-3 text-sm font-black text-[#2155ff]">Objectifs</p>
-</Link>
+
+        <Link
+          href="/achievements"
+          className="rounded-[2rem] border border-blue-100 bg-white p-4 text-center shadow-[0_8px_25px_rgba(33,85,255,0.08)] transition active:scale-[0.98]"
+        >
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50">
+            <img src="/objectif.png" alt="Objectifs" className="h-20 w-20 object-contain" />
+          </div>
+          <p className="mt-3 text-sm font-black text-[#2155ff]">Objectifs</p>
+        </Link>
+
         <Link
           href="/favorites"
           className="rounded-[2rem] border border-blue-100 bg-white p-4 text-center shadow-[0_8px_25px_rgba(33,85,255,0.08)] transition active:scale-[0.98]"
         >
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50">
-            <img
-              src="/coeur.png"
-              alt="Favoris"
-              className="h-8 w-8 object-contain"
-            />
+            <img src="/coeur.png" alt="Favoris" className="h-8 w-8 object-contain" />
           </div>
           <p className="mt-3 text-sm font-black text-[#2155ff]">Favoris</p>
         </Link>
@@ -688,18 +691,31 @@ function EmptyStat({ text }: { text: string }) {
 function getGenreStats(albums: UserAlbum[]): GenreStat[] {
   const count: Record<string, number> = {};
 
-  albums.forEach((album) => {
-    const genre = normalizeValue(album.genre);
+  albums.forEach((album: any) => {
+    const rawGenre =
+      album.genre ||
+      album.primaryGenre ||
+      album.mainGenre ||
+      album.style ||
+      album.category ||
+      album.tag ||
+      "";
 
-    if (genre === "Non renseigné") return;
+    const genre = normalizeValue(rawGenre);
+
+    if (
+      genre === "Non renseigné" ||
+      genre === "Non renseignée" ||
+      genre.toLowerCase() === "non renseigné" ||
+      genre.toLowerCase() === "non renseignée"
+    ) {
+      return;
+    }
 
     count[genre] = (count[genre] || 0) + 1;
   });
 
-  const totalKnownGenres = Object.values(count).reduce(
-    (sum, value) => sum + value,
-    0
-  );
+  const total = Object.values(count).reduce((sum, value) => sum + value, 0);
 
   return Object.entries(count)
     .sort((a, b) => b[1] - a[1])
@@ -707,21 +723,13 @@ function getGenreStats(albums: UserAlbum[]): GenreStat[] {
     .map(([name, value], index) => ({
       name,
       count: value,
-      percent:
-        totalKnownGenres > 0 ? Math.round((value / totalKnownGenres) * 100) : 0,
+      percent: total > 0 ? Math.round((value / total) * 100) : 0,
       color: PIE_COLORS[index % PIE_COLORS.length],
     }));
 }
 
 function getRarityStats(albums: UserAlbum[]): RarityStat[] {
-  const validRarities = [
-    "Commun",
-    "Rare",
-    "Très rare",
-    "Épique",
-    "Légendaire",
-  ];
-
+  const validRarities = ["Commun", "Rare", "Très rare", "Épique", "Légendaire"];
   const count: Record<string, number> = {};
 
   albums.forEach((album) => {
@@ -795,6 +803,46 @@ function getTopArtists(albums: UserAlbum[]) {
   return Object.entries(count)
     .map(([name, value]) => ({ name, count: value }))
     .sort((a, b) => b.count - a.count);
+}
+
+function getDurationMinutes(value: unknown) {
+  const text = String(value || "").trim();
+
+  if (
+    !text ||
+    text === "Non renseigné" ||
+    text === "Non renseignée" ||
+    text === "undefined" ||
+    text === "null"
+  ) {
+    return 0;
+  }
+
+  const number = parseInt(text.replace(/\D/g, ""), 10);
+  return Number.isNaN(number) ? 0 : number;
+}
+
+function getEstimatedValueNumber(value: unknown) {
+  const text = String(value || "")
+    .replace("€", "")
+    .replace(",", ".")
+    .trim();
+
+  if (
+    !text ||
+    text === "Non renseigné" ||
+    text === "Non renseignée" ||
+    text === "undefined" ||
+    text === "null"
+  ) {
+    return 0;
+  }
+
+  const numbers = text.match(/\d+(\.\d+)?/g);
+  if (!numbers) return 0;
+
+  const values = numbers.map(Number);
+  return values.reduce((sum, number) => sum + number, 0) / values.length;
 }
 
 function normalizeValue(value: unknown) {
