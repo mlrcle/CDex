@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+
 import { supabase } from "@/app/lib/supabase";
-import { saveCloudData } from "@/app/lib/cloudSave";
+import {
+  saveCloudData,
+  loadCloudData,
+} from "@/app/lib/cloudSave";
 
 const STORAGE_KEYS = [
   "cdex-user-albums",
@@ -20,24 +24,59 @@ export default function CloudSync() {
   const lastSnapshot = useRef("");
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    let mounted = true;
+
+    async function setupRealtime() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      if (!user || !mounted) return;
 
-      const snapshot = JSON.stringify(
-        STORAGE_KEYS.map((key) => [key, localStorage.getItem(key)])
-      );
+      const interval = setInterval(async () => {
+        const snapshot = JSON.stringify(
+          STORAGE_KEYS.map((key) => [
+            key,
+            localStorage.getItem(key),
+          ])
+        );
 
-      if (snapshot === lastSnapshot.current) return;
+        if (snapshot === lastSnapshot.current) return;
 
-      lastSnapshot.current = snapshot;
-      await saveCloudData();
-    }, 3000);
+        lastSnapshot.current = snapshot;
 
-    return () => clearInterval(interval);
+        await saveCloudData();
+      }, 3000);
+
+      const channel = supabase
+        .channel("cloud-sync")
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "user_data",
+            filter: `user_id=eq.${user.id}`,
+          },
+          async () => {
+            await loadCloudData();
+
+            window.dispatchEvent(new Event("storage"));
+          }
+        )
+        .subscribe();
+
+      return () => {
+        clearInterval(interval);
+        supabase.removeChannel(channel);
+      };
+    }
+
+    setupRealtime();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return null;

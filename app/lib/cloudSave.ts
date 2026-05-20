@@ -52,7 +52,11 @@ STORAGE_KEYS.forEach((key) => {
     console.error("SAVE CLOUD CRASH", err);
   }
 }
-
+export function clearLocalCdexData() {
+  STORAGE_KEYS.forEach((key) => {
+    localStorage.removeItem(key);
+  });
+}
 export async function loadCloudData() {
   try {
     const {
