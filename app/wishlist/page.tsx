@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveCloudData } from "@/app/lib/cloudSave";
-import { saveCloudData } from "@/app/lib/cloudSave";
 
 export default function WishlistPage() {
   const router = useRouter();
