@@ -21,16 +21,20 @@ export default function AchievementPopup() {
     return () => clearInterval(interval);
   }, []);
 
-  const completedAchievements = useMemo(() => {
-    const albums = JSON.parse(localStorage.getItem("cdex-user-albums") || "[]");
-    const wishlistConvertedCount = Number(
-      localStorage.getItem("cdex-wishlist-converted-count") || 0
-    );
+  const [completedAchievements, setCompletedAchievements] = useState<any[]>([]);
 
-    return getAchievements(albums, wishlistConvertedCount).filter(
+useEffect(() => {
+  const albums = JSON.parse(localStorage.getItem("cdex-user-albums") || "[]");
+  const wishlistConvertedCount = Number(
+    localStorage.getItem("cdex-wishlist-converted-count") || 0
+  );
+
+  setCompletedAchievements(
+    getAchievements(albums, wishlistConvertedCount).filter(
       (achievement) => achievement.completed
-    );
-  }, [tick]);
+    )
+  );
+}, [tick]);
 
   useEffect(() => {
     const seenIds = JSON.parse(
