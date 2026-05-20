@@ -34,7 +34,11 @@ export async function saveCloudData() {
 STORAGE_KEYS.forEach((key) => {
   data[key] = localStorage.getItem(key);
 });
-
+Object.keys(localStorage).forEach((key) => {
+  if (key.startsWith("cdex-album-personal-")) {
+    data[key] = localStorage.getItem(key);
+  }
+});
     console.log("DATA TO SAVE", data);
 
     const { error } = await supabase.from("user_data").upsert({

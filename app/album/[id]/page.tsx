@@ -6,6 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { albums } from "../../data/albums";
 import { rollRarity } from "@/app/lib/rarity";
+import { supabase } from "@/app/lib/supabase";
+import { saveCloudData } from "@/app/lib/cloudSave";
 
 type Album = {
   id: string;
@@ -117,6 +119,7 @@ export default function AlbumPage() {
   const [wishlistAlbums, setWishlistAlbums] = useState<Album[]>([]);
   const [previewAlbum, setPreviewAlbum] = useState<Album | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const [toast, setToast] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -194,7 +197,9 @@ export default function AlbumPage() {
       );
 
       localStorage.setItem("cdex-user-albums", JSON.stringify(migratedAlbums));
+      saveCloudData();
       setUserAlbums(migratedAlbums);
+      
     }
 
     if (savedWishlist) setWishlistAlbums(JSON.parse(savedWishlist));
@@ -216,7 +221,17 @@ export default function AlbumPage() {
   }, [userAlbums, wishlistAlbums, previewAlbum]);
 
   const baseAlbum = allAlbums.find((item) => item.id === albumId);
+useEffect(() => {
+  async function loadUser() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
+    setCurrentUserId(user?.id || null);
+  }
+
+  loadUser();
+}, []);
   const personalStorageKey = useMemo(
     () => `cdex-album-personal-${albumId}`,
     [albumId]
@@ -271,6 +286,7 @@ export default function AlbumPage() {
         editedValue,
       })
     );
+    saveCloudData();
   }, [
     isLoaded,
     personalStorageKey,
@@ -347,6 +363,7 @@ useEffect(() => {
       "cdex-user-albums",
       JSON.stringify(updatedUserAlbums)
     );
+    saveCloudData();
 
     setUserAlbums(updatedUserAlbums);
   }
@@ -356,6 +373,7 @@ useEffect(() => {
       "cdex-wishlist",
       JSON.stringify(updatedWishlistAlbums)
     );
+    saveCloudData();
 
     setWishlistAlbums(updatedWishlistAlbums);
   }
@@ -437,11 +455,14 @@ useEffect(() => {
   function saveUserAlbums(nextAlbums: Album[]) {
     localStorage.setItem("cdex-user-albums", JSON.stringify(nextAlbums));
     setUserAlbums(nextAlbums);
+    saveCloudData();
   }
+  
 
   function saveWishlist(nextWishlist: Album[]) {
     localStorage.setItem("cdex-wishlist", JSON.stringify(nextWishlist));
     setWishlistAlbums(nextWishlist);
+    saveCloudData();
   }
 
   function toggleFavorite() {
@@ -500,6 +521,7 @@ useEffect(() => {
     localStorage.setItem("cdex-user-albums", JSON.stringify(updatedUserAlbums));
     localStorage.setItem("cdex-wishlist", JSON.stringify(updatedWishlist));
     localStorage.setItem("cdex-favorites", JSON.stringify(updatedFavorites));
+    saveCloudData();
 
     showToast("Album supprimé.");
     setTimeout(() => router.push("/collection"), 900);
