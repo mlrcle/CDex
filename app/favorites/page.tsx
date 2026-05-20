@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { albums } from "../data/albums";
+import { saveCloudData } from "@/app/lib/cloudSave";
 
 type Album = {
   id: string;
@@ -52,6 +53,7 @@ export default function FavoritesPage() {
 
     localStorage.setItem("cdex-favorites", JSON.stringify(updatedFavorites));
     setFavorites(updatedFavorites);
+    saveCloudData();
 
     showToast(
       favorites.includes(id) ? "Retiré des favoris." : "Ajouté aux favoris."
@@ -67,6 +69,7 @@ export default function FavoritesPage() {
 
     localStorage.setItem("cdex-wishlist", JSON.stringify(updatedWishlist));
     setWishlistAlbums(updatedWishlist);
+    saveCloudData();
 
     showToast(
       alreadyInWishlist ? "Retiré de la wishlist." : "Ajouté à la wishlist."

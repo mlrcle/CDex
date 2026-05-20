@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+
 import { supabase } from "../lib/supabase";
+import { loadCloudData, saveCloudData } from "../lib/cloudSave";
 
 export default function AuthPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -22,6 +27,8 @@ export default function AuthPage() {
     if (error) {
       setMessage(error.message);
     } else {
+      await saveCloudData();
+
       setMessage("Compte créé. Vérifie tes emails.");
     }
 
@@ -40,7 +47,12 @@ export default function AuthPage() {
     if (error) {
       setMessage(error.message);
     } else {
+      await loadCloudData();
+
       setMessage("Connexion réussie.");
+
+      router.push("/profile");
+      router.refresh();
     }
 
     setLoading(false);

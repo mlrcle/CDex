@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { rollRarity } from "@/app/lib/rarity";
+import { saveCloudData } from "@/app/lib/cloudSave";
 
 type UserAlbum = {
   id: string;
@@ -145,6 +146,7 @@ export default function AddPage() {
 
     localStorage.setItem("cdex-user-albums", JSON.stringify(updatedAlbums));
     setLastAlbums(updatedAlbums.slice(-3).reverse());
+    saveCloudData();
 
     closeCamera();
 

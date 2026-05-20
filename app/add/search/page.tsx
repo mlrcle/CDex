@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { rollRarity } from "@/app/lib/rarity";
+import { saveCloudData } from "@/app/lib/cloudSave";
 
 type MusicBrainzRelease = {
   id: string;
@@ -309,6 +310,7 @@ function SearchAlbumContent() {
 
     localStorage.setItem("cdex-user-albums", JSON.stringify(updatedAlbums));
     setUserAlbums(updatedAlbums);
+    saveCloudData();
 
     showToast(
       `"${newAlbum.title}" ajouté : ${newAlbum.rarity} · +${newAlbum.xp} XP`
