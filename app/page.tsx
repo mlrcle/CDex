@@ -134,35 +134,57 @@ export default function Home() {
       </div>
 
       {/* HERO */}
-      <section className="relative overflow-hidden rounded-[2.4rem] border border-white/70 bg-white/75 p-6 shadow-[0_20px_60px_rgba(33,85,255,0.16)] backdrop-blur-2xl">
-        <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#2155ff]/10 blur-2xl" />
-        <HeroLatestAlbum album={latestAlbum} />
-        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#2155ff]">Accueil</p>
-        <h1 className="mt-3 max-w-[250px] text-5xl font-black leading-[0.95] tracking-tight text-blue-950">
-          Ta collection CD
-        </h1>
-        <p className="mt-4 max-w-[250px] text-sm font-semibold leading-6 text-blue-950/55">
-          Retrouve tes albums, tes favoris, ta wishlist et les infos de ta collection.
-        </p>
-        <div className="mt-7 grid grid-cols-2 gap-3">
-          <StatCard label="CD possédés" value={stats.cdCount} />
-          <StatCard label="Valeur estimée" value={`${stats.totalValue} €`} />
-        </div>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <Link
-            href="/add"
-            className="rounded-2xl bg-[#2155ff] px-4 py-4 text-center text-sm font-black text-white shadow-[0_12px_35px_rgba(33,85,255,0.35)] transition active:scale-95"
-          >
-            Ajouter
-          </Link>
-          <Link
-            href="/collection"
-            className="rounded-2xl border border-blue-100 bg-white/80 px-4 py-4 text-center text-sm font-black text-[#2155ff] shadow-sm transition active:scale-95"
-          >
-            Collection
-          </Link>
-        </div>
-      </section>
+<section className="relative overflow-hidden rounded-[2.4rem] border border-white/80 bg-gradient-to-br from-white via-[#eef5ff] to-[#f7fbff] p-6 shadow-[0_22px_65px_rgba(33,85,255,0.18)] backdrop-blur-2xl">
+  <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#2155ff]/18 blur-3xl" />
+  <div className="absolute -bottom-24 -left-20 h-56 w-56 rounded-full bg-[#ff4b4b]/10 blur-3xl" />
+  <div className="absolute right-8 top-12 h-32 w-32 rounded-full bg-cyan-200/30 blur-2xl" />
+
+  <HeroLatestAlbum album={latestAlbum} />
+
+  <div className="relative z-10">
+    <p className="text-xs font-black uppercase tracking-[0.28em] text-[#2155ff]">
+      Bienvenue sur
+    </p>
+
+    <h1 className="mt-2 text-[3.4rem] font-black leading-[0.88] tracking-tight">
+      <span className="text-[#2155ff] drop-shadow-[0_8px_18px_rgba(33,85,255,0.20)]">
+        CD
+      </span>
+      <span className="text-[#ff4b4b] drop-shadow-[0_8px_18px_rgba(255,75,75,0.18)]">
+        ex
+      </span>
+    </h1>
+
+    <h2 className="mt-5 max-w-[230px] text-3xl font-black leading-[0.95] tracking-tight text-blue-950">
+      Ta collection prend vie.
+    </h2>
+
+    <p className="mt-4 max-w-[245px] text-sm font-semibold leading-6 text-blue-950/60">
+      Ajoute tes CD, suis tes favoris, complète ta wishlist et débloque des objectifs.
+    </p>
+
+    <div className="mt-7 grid grid-cols-2 gap-3">
+      <StatCard label="CD possédés" value={stats.cdCount} />
+      <StatCard label="Valeur estimée" value={`${stats.totalValue} €`} />
+    </div>
+
+    <div className="mt-5 grid grid-cols-2 gap-3">
+      <Link
+        href="/add"
+        className="rounded-2xl bg-[#2155ff] px-4 py-4 text-center text-sm font-black text-white shadow-[0_12px_35px_rgba(33,85,255,0.35)] transition active:scale-95"
+      >
+        Ajouter
+      </Link>
+
+      <Link
+        href="/collection"
+        className="rounded-2xl border border-blue-100 bg-white/85 px-4 py-4 text-center text-sm font-black text-[#2155ff] shadow-sm transition active:scale-95"
+      >
+        Collection
+      </Link>
+    </div>
+  </div>
+</section>
 
       {/* QUICK ACTIONS */}
       <section className="mt-5 grid grid-cols-3 gap-3">

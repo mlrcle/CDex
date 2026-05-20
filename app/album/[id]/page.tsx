@@ -854,7 +854,7 @@ function AlbumCoverVisual({
   toggleWishlist: () => void;
   toggleFavorite: () => void;
 }) {
-  
+  const [expandedCover, setExpandedCover] = useState(false);
   // Image cover à l'intérieur de la fenêtre
   const COVER_X = 13;
   const COVER_Y = 6;
@@ -868,9 +868,12 @@ function AlbumCoverVisual({
   const PNG_H = 125;
 
   return (
-    <div className="relative aspect-square overflow-hidden rounded-[2rem] bg-transparent">
+   <div
+  onClick={() => setExpandedCover((value) => !value)}
+  className="relative aspect-square cursor-pointer overflow-hidden rounded-[2rem] bg-transparent"
+>
       {/* FENÊTRE COVER */}
-      <div
+<div
   className="
     absolute
     left-[0%]
@@ -881,40 +884,56 @@ function AlbumCoverVisual({
     overflow-hidden
   "
 >
-        {cover ? (
-          <img
-            src={cover}
-            alt={title}
-            style={{
+  {cover ? (
+    <img
+      src={cover}
+      alt={title}
+      style={
+        expandedCover
+          ? {
+              left: "0%",
+              top: "0%",
+              width: "100%",
+              height: "100%",
+            }
+          : {
               left: `${COVER_X}%`,
               top: `${COVER_Y}%`,
               width: `${COVER_W}%`,
               height: `${COVER_H}%`,
-            }}
-            className="absolute object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-blue-100">
-            💿
-          </div>
-        )}
-      </div>
+            }
+      }
+      className={`absolute object-cover ${
+  expandedCover ? "rounded-[2rem]" : ""
+}`}
+    />
+  ) : (
+    <div className="flex h-full w-full items-center justify-center bg-blue-100">
+      💿
+    </div>
+  )}
+</div>
 
       {/* PNG RARETÉ */}
-      <img
-        src={rarityFrame}
-        alt=""
-        style={{
-          left: `${PNG_X}%`,
-          top: `${PNG_Y}%`,
-          width: `${PNG_W}%`,
-          height: `${PNG_H}%`,
-        }}
-        className="pointer-events-none absolute z-[5] object-fill"
-      />
+{!expandedCover && (
+  <img
+    src={rarityFrame}
+    alt=""
+    style={{
+      left: `${PNG_X}%`,
+      top: `${PNG_Y}%`,
+      width: `${PNG_W}%`,
+      height: `${PNG_H}%`,
+    }}
+    className="pointer-events-none absolute z-[5] object-fill"
+  />
+)}
 
       <button
-        onClick={toggleWishlist}
+        onClick={(event) => {
+  event.stopPropagation();
+  toggleWishlist();
+}}
         className="absolute bottom-[-1%] left-[5%] z-[20] transition active:scale-90"
       >
         <Image
@@ -927,7 +946,10 @@ function AlbumCoverVisual({
       </button>
 
       <button
-        onClick={toggleFavorite}
+        onClick={(event) => {
+  event.stopPropagation();
+  toggleFavorite();
+}}
         className="absolute bottom-[-1%] right-[5%] z-[20] transition active:scale-90"
       >
         <Image

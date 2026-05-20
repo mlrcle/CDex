@@ -5,9 +5,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { rollRarity } from "@/app/lib/rarity";
 import { albums as baseAlbums } from "@/app/data/albums";
 import { getLevelFromXp } from "@/app/lib/profileLevel";
+import {
+  getAchievements,
+  getCompletedAchievementXp,
+} from "@/app/lib/achievements";
 
 type UserAlbum = {
   id: string;
+  musicBrainzId?: string;
   title: string;
   artist: string;
   year: number;
@@ -16,11 +21,13 @@ type UserAlbum = {
   estimatedValue: string;
   cover: string;
   addedAt: string;
+  createdAt?: string;
   discovered: boolean;
   rarity: string;
   xp: number;
   tracks: string[];
-  source: "manual" | "search" | "scan";
+  rating?: number;
+  source: "manual" | "search" | "scan" | "database" | "wishlist";
 };
 
 type GenreStat = {
@@ -57,6 +64,7 @@ export default function ProfilePage() {
 
   const [albums, setAlbums] = useState<UserAlbum[]>([]);
   const [wishlist, setWishlist] = useState<UserAlbum[]>([]);
+  const [wishlistConvertedCount, setWishlistConvertedCount] = useState(0);
   const [description, setDescription] = useState("");
   const [profileImage, setProfileImage] = useState("");
   const [profileName, setProfileName] = useState("Mon profil");
@@ -64,47 +72,50 @@ export default function ProfilePage() {
   const [editingObjective, setEditingObjective] = useState(false);
 
   useEffect(() => {
-  const savedAlbums = JSON.parse(
-    localStorage.getItem("cdex-user-albums") || "[]"
-  );
+    const savedAlbums = JSON.parse(
+      localStorage.getItem("cdex-user-albums") || "[]"
+    );
 
-  const migratedAlbums: UserAlbum[] = savedAlbums.map((album: any) => {
-    if (
-      album.rarity &&
-      album.rarity !== "Non renseigné" &&
-      album.rarity !== "Non renseignée" &&
-      typeof album.xp === "number"
-    ) {
-      return album;
-    }
+    const migratedAlbums: UserAlbum[] = savedAlbums.map((album: any) => {
+      if (
+        album.rarity &&
+        album.rarity !== "Non renseigné" &&
+        album.rarity !== "Non renseignée" &&
+        typeof album.xp === "number"
+      ) {
+        return album;
+      }
 
-    const rarity = rollRarity();
+      const rarity = rollRarity();
 
-    return {
+      return {
+        ...album,
+        rarity: rarity.name,
+        xp: rarity.xp,
+      };
+    });
+
+    localStorage.setItem("cdex-user-albums", JSON.stringify(migratedAlbums));
+
+    const cleanedBaseAlbums = baseAlbums.map((album: any) => ({
       ...album,
-      rarity: rarity.name,
-      xp: rarity.xp,
-    };
-  });
+      source: "database",
+    }));
 
-  localStorage.setItem("cdex-user-albums", JSON.stringify(migratedAlbums));
+    setAlbums([...migratedAlbums, ...cleanedBaseAlbums]);
+    setWishlist(JSON.parse(localStorage.getItem("cdex-wishlist") || "[]"));
 
-  const cleanedBaseAlbums = baseAlbums.map((album: any) => ({
-    ...album,
-    source: "database",
-  }));
+    setWishlistConvertedCount(
+      Number(localStorage.getItem("cdex-wishlist-converted-count") || 0)
+    );
 
-  setAlbums([...migratedAlbums, ...cleanedBaseAlbums]);
-  setWishlist(JSON.parse(localStorage.getItem("cdex-wishlist") || "[]"));
-  setDescription(localStorage.getItem("cdex-profile-description") || "");
-  setProfileImage(localStorage.getItem("cdex-profile-image") || "");
-  setProfileName(localStorage.getItem("cdex-profile-name") || "Mon profil");
+    setDescription(localStorage.getItem("cdex-profile-description") || "");
+    setProfileImage(localStorage.getItem("cdex-profile-image") || "");
+    setProfileName(localStorage.getItem("cdex-profile-name") || "Mon profil");
 
-  const savedObjective = localStorage.getItem("cdex-collection-objective");
-  setObjective(savedObjective ? Number(savedObjective) || 50 : 50);
-}, []);
-
-    
+    const savedObjective = localStorage.getItem("cdex-collection-objective");
+    setObjective(savedObjective ? Number(savedObjective) || 50 : 50);
+  }, []);
 
   function saveDescription(value: string) {
     setDescription(value);
@@ -137,42 +148,98 @@ export default function ProfilePage() {
     reader.readAsDataURL(file);
   }
 
-  const totalAlbums = albums.length;
-
-  const totalXp = useMemo(() => {
-    return albums.reduce((total, album) => total + (album.xp || 0), 0);
+  const rawOwnedAlbums = useMemo(() => {
+    return albums.filter((album) => album.source !== "database");
   }, [albums]);
+
+  const ownedAlbums = useMemo(() => {
+    return rawOwnedAlbums.map((ownedAlbum) => {
+      const matchingBase = baseAlbums.find((baseAlbum: any) => {
+        return (
+          String(baseAlbum.id) === String(ownedAlbum.id) ||
+          String(baseAlbum.musicBrainzId || "") ===
+            String(ownedAlbum.musicBrainzId || "") ||
+          `${baseAlbum.title}-${baseAlbum.artist}`.toLowerCase() ===
+            `${ownedAlbum.title}-${ownedAlbum.artist}`.toLowerCase()
+        );
+      }) as Partial<UserAlbum> | undefined;
+
+      return {
+        ...matchingBase,
+        ...ownedAlbum,
+        genre:
+  normalizeValue(matchingBase?.genre) !== "Non renseigné"
+    ? matchingBase?.genre
+    : ownedAlbum.genre,
+        duration:
+          normalizeValue(ownedAlbum.duration) !== "Non renseigné"
+            ? ownedAlbum.duration
+            : matchingBase?.duration || ownedAlbum.duration,
+        estimatedValue:
+          normalizeValue(ownedAlbum.estimatedValue) !== "Non renseigné"
+            ? ownedAlbum.estimatedValue
+            : matchingBase?.estimatedValue || ownedAlbum.estimatedValue,
+        cover: ownedAlbum.cover || matchingBase?.cover || "",
+        year: ownedAlbum.year || matchingBase?.year || 0,
+      } as UserAlbum;
+    });
+  }, [rawOwnedAlbums]);
+
+  const totalAlbums = ownedAlbums.length;
+
+  const albumXp = useMemo(() => {
+    return ownedAlbums.reduce((total, album) => total + (album.xp || 0), 0);
+  }, [ownedAlbums]);
+
+  const achievements = useMemo(() => {
+    return getAchievements(ownedAlbums, wishlistConvertedCount);
+  }, [ownedAlbums, wishlistConvertedCount]);
+
+  const achievementXp = useMemo(() => {
+    return getCompletedAchievementXp(achievements);
+  }, [achievements]);
+
+  const totalXp = albumXp + achievementXp;
 
   const levelData = useMemo(() => getLevelFromXp(totalXp), [totalXp]);
 
   const totalDuration = useMemo(() => {
-    return albums.reduce((total, album) => {
+    return ownedAlbums.reduce((total, album) => {
       const value = parseInt(String(album.duration).replace(/\D/g, ""));
       return total + (Number.isNaN(value) ? 0 : value);
     }, 0);
-  }, [albums]);
+  }, [ownedAlbums]);
 
   const totalValue = useMemo(() => {
-    return albums.reduce((total, album) => {
+    return ownedAlbums.reduce((total, album) => {
       const value = parseFloat(String(album.estimatedValue).replace(",", "."));
       return total + (Number.isNaN(value) ? 0 : value);
     }, 0);
-  }, [albums]);
+  }, [ownedAlbums]);
 
   const genreStats = useMemo(() => getGenreStats(albums), [albums]);
-  const rarityStats = useMemo(() => getRarityStats(albums), [albums]);
-  const evolutionStats = useMemo(() => getEvolutionStats(albums), [albums]);
-  const topArtists = useMemo(() => getTopArtists(albums), [albums]);
+  const rarityStats = useMemo(() => getRarityStats(ownedAlbums), [ownedAlbums]);
+  const evolutionStats = useMemo(
+    () => getEvolutionStats(rawOwnedAlbums),
+    [rawOwnedAlbums]
+  );
+  const topArtists = useMemo(() => getTopArtists(ownedAlbums), [ownedAlbums]);
 
   const favoriteGenre = genreStats[0]?.name || "Non défini";
   const favoriteArtist = topArtists[0]?.name || "Non défini";
 
-  const albumsWithCover = albums.filter((album) => album.cover).length;
+  const albumsWithCover = ownedAlbums.filter((album) => album.cover).length;
   const coverPercent =
     totalAlbums > 0 ? Math.round((albumsWithCover / totalAlbums) * 100) : 0;
 
   const objectivePercent =
-    objective > 0 ? Math.min(100, Math.round((totalAlbums / objective) * 100)) : 0;
+    objective > 0
+      ? Math.min(100, Math.round((totalAlbums / objective) * 100))
+      : 0;
+
+  const completedAchievements = achievements.filter(
+    (achievement) => achievement.completed
+  ).length;
 
   return (
     <main className="mx-auto max-w-md px-5 pb-28 pt-6">
@@ -255,7 +322,7 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section className="mt-5 grid grid-cols-2 gap-3">
+      <section className="mt-5 grid grid-cols-3 gap-3">
         <StatCard label="CD ajoutés" value={totalAlbums.toString()} />
         <StatCard label="Niveau" value={levelData.level.toString()} />
         <StatCard label="Durée totale" value={`${totalDuration} min`} />
@@ -315,7 +382,7 @@ export default function ProfilePage() {
               {evolutionStats.length > 0 ? (
                 <EvolutionChart stats={evolutionStats} />
               ) : (
-                <EmptyStat text="Ajoute plusieurs albums." />
+                <EmptyStat text="Pas encore assez de dates d’ajout." />
               )}
             </div>
           </div>
@@ -449,7 +516,7 @@ export default function ProfilePage() {
         </Link>
       </section>
 
-      <section className="mt-5 grid grid-cols-2 gap-3">
+      <section className="mt-5 grid grid-cols-3 gap-3">
         <Link
           href="/wishlist"
           className="rounded-[2rem] border border-blue-100 bg-white p-4 text-center shadow-[0_8px_25px_rgba(33,85,255,0.08)] transition active:scale-[0.98]"
@@ -463,7 +530,19 @@ export default function ProfilePage() {
           </div>
           <p className="mt-3 text-sm font-black text-[#2155ff]">Wishlist</p>
         </Link>
-
+<Link
+  href="/achievements"
+  className="rounded-[2rem] border border-blue-100 bg-white p-4 text-center shadow-[0_8px_25px_rgba(33,85,255,0.08)] transition active:scale-[0.98]"
+>
+  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50">
+    <img
+      src="/objectif.png"
+      alt="Objectifs"
+      className="h-20 w-20 object-contain"
+    />
+  </div>
+  <p className="mt-3 text-sm font-black text-[#2155ff]">Objectifs</p>
+</Link>
         <Link
           href="/favorites"
           className="rounded-[2rem] border border-blue-100 bg-white p-4 text-center shadow-[0_8px_25px_rgba(33,85,255,0.08)] transition active:scale-[0.98]"
@@ -612,29 +691,44 @@ function getGenreStats(albums: UserAlbum[]): GenreStat[] {
   albums.forEach((album) => {
     const genre = normalizeValue(album.genre);
 
-if (genre === "Non renseigné") return;
+    if (genre === "Non renseigné") return;
 
-count[genre] = (count[genre] || 0) + 1;
+    count[genre] = (count[genre] || 0) + 1;
   });
 
-  const totalKnownGenres = Object.values(count).reduce((sum, value) => sum + value, 0);
+  const totalKnownGenres = Object.values(count).reduce(
+    (sum, value) => sum + value,
+    0
+  );
 
-return Object.entries(count)
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 6)
-  .map(([name, value], index) => ({
-    name,
-    count: value,
-    percent: totalKnownGenres > 0 ? Math.round((value / totalKnownGenres) * 100) : 0,
-    color: PIE_COLORS[index % PIE_COLORS.length],
-  }));
+  return Object.entries(count)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([name, value], index) => ({
+      name,
+      count: value,
+      percent:
+        totalKnownGenres > 0 ? Math.round((value / totalKnownGenres) * 100) : 0,
+      color: PIE_COLORS[index % PIE_COLORS.length],
+    }));
 }
 
 function getRarityStats(albums: UserAlbum[]): RarityStat[] {
+  const validRarities = [
+    "Commun",
+    "Rare",
+    "Très rare",
+    "Épique",
+    "Légendaire",
+  ];
+
   const count: Record<string, number> = {};
 
   albums.forEach((album) => {
-    const rarity = normalizeValue(album.rarity);
+    const rarity = normalizeRarity(album.rarity);
+
+    if (!validRarities.includes(rarity)) return;
+
     count[rarity] = (count[rarity] || 0) + 1;
   });
 
@@ -649,10 +743,18 @@ function getRarityStats(albums: UserAlbum[]): RarityStat[] {
 
 function getEvolutionStats(albums: UserAlbum[]): EvolutionStat[] {
   const validAlbums = albums
-    .map((album) => ({
-      ...album,
-      date: parseFrenchDate(album.addedAt),
-    }))
+    .map((album) => {
+      const rawDate =
+        album.addedAt ||
+        album.createdAt ||
+        (album as any).dateAdded ||
+        (album as any).addedDate;
+
+      return {
+        ...album,
+        date: parseAlbumDate(rawDate),
+      };
+    })
     .filter((album) => album.date)
     .sort((a, b) => Number(a.date) - Number(b.date));
 
@@ -684,6 +786,9 @@ function getTopArtists(albums: UserAlbum[]) {
 
   albums.forEach((album) => {
     const artist = normalizeValue(album.artist);
+
+    if (artist === "Non renseigné" || artist === "Artiste inconnu") return;
+
     count[artist] = (count[artist] || 0) + 1;
   });
 
@@ -692,24 +797,40 @@ function getTopArtists(albums: UserAlbum[]) {
     .sort((a, b) => b.count - a.count);
 }
 
-function normalizeValue(value: string) {
-  if (!value || value.trim() === "" || value === "Non renseigné") {
+function normalizeValue(value: unknown) {
+  const text = String(value || "").trim();
+
+  if (!text || text === "undefined" || text === "null") {
     return "Non renseigné";
   }
 
-  return value.trim();
+  return text;
 }
 
-function parseFrenchDate(value: string) {
+function normalizeRarity(value: unknown) {
+  const text = normalizeValue(value).toLowerCase();
+
+  if (text === "commun") return "Commun";
+  if (text === "rare") return "Rare";
+  if (text === "très rare" || text === "tres rare") return "Très rare";
+  if (text === "épique" || text === "epique") return "Épique";
+  if (text === "légendaire" || text === "legendaire") return "Légendaire";
+
+  return "Non renseigné";
+}
+
+function parseAlbumDate(value: unknown) {
   if (!value) return null;
 
-  const parts = value.split("/");
+  const text = String(value).trim();
 
-  if (parts.length === 3) {
-    const [day, month, year] = parts.map(Number);
-    return new Date(year, month - 1, day);
+  const frenchParts = text.split("/");
+  if (frenchParts.length === 3) {
+    const [day, month, year] = frenchParts.map(Number);
+    const date = new Date(year, month - 1, day);
+    return Number.isNaN(date.getTime()) ? null : date;
   }
 
-  const date = new Date(value);
+  const date = new Date(text);
   return Number.isNaN(date.getTime()) ? null : date;
 }

@@ -34,7 +34,7 @@ export const RARITIES: RarityConfig[] = [
   {
     name: "Très rare",
     chance: 7,
-    xp: 60,
+    xp: 100,
     color: "#a855f7",
     bg: "bg-purple-50",
     glow: "shadow-[0_0_18px_rgba(168,85,247,0.25)]",
@@ -42,7 +42,7 @@ export const RARITIES: RarityConfig[] = [
   {
     name: "Épique",
     chance: 2.5,
-    xp: 150,
+    xp: 250,
     color: "#ff4b4b",
     bg: "bg-red-50",
     glow: "shadow-[0_0_18px_rgba(255,75,75,0.28)]",
@@ -50,7 +50,7 @@ export const RARITIES: RarityConfig[] = [
   {
     name: "Légendaire",
     chance: 0.5,
-    xp: 500,
+    xp: 1000,
     color: "#f59e0b",
     bg: "bg-yellow-50",
     glow: "shadow-[0_0_22px_rgba(245,158,11,0.35)]",

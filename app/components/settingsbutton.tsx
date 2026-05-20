@@ -18,10 +18,14 @@ export default function SettingsButton() {
 
   return (
     <button
-      onClick={handleClick}
-      className="fixed right-5 top-4 z-[999] flex h-11 w-11 items-center justify-center rounded-full border border-blue-100 bg-white/90 text-xl font-black text-[#2155ff] shadow-xl backdrop-blur"
-    >
-      ⚙
-    </button>
+  onClick={handleClick}
+  className="fixed right-3 top-2 z-[999] flex h-20 w-20 items-center justify-center transition active:scale-95"
+>
+  <img
+    src="/reglage.png"
+    alt="Réglages"
+    className="h-20 w-20 object-contain"
+  />
+</button>
   );
 }

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
+
 import Navbar from "./components/Navbar";
 import SettingsButton from "./components/settingsbutton";
+import AchievementPopup from "@/app/components/AchievementPopup";
 
 export const metadata: Metadata = {
   title: "CDex",
@@ -18,6 +20,9 @@ export default function RootLayout({
       <body>
         <Navbar />
         <SettingsButton />
+
+        <AchievementPopup />
+
         {children}
       </body>
     </html>
