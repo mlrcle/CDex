@@ -29,9 +29,11 @@ export async function saveCloudData() {
 
     const data: Record<string, string | null> = {};
 
-    STORAGE_KEYS.forEach((key) => {
-      data[key] = localStorage.getItem(key);
-    });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+STORAGE_KEYS.forEach((key) => {
+  data[key] = localStorage.getItem(key);
+});
 
     console.log("DATA TO SAVE", data);
 
