@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { saveCloudData } from "@/app/lib/cloudSave";
+import { saveCloudData } from "@/app/lib/cloudSave";
 
 export default function WishlistPage() {
   const router = useRouter();
@@ -32,6 +34,7 @@ export default function WishlistPage() {
 
     localStorage.setItem("cdex-wishlist", JSON.stringify(updatedWishlist));
     setWishlistAlbums(updatedWishlist);
+    saveCloudData();
 
     showToast("Retiré de la wishlist.");
   }
@@ -45,6 +48,7 @@ export default function WishlistPage() {
 
     localStorage.setItem("cdex-favorites", JSON.stringify(updatedFavorites));
     setFavorites(updatedFavorites);
+    saveCloudData();
 
     showToast(isAlreadyFavorite ? "Retiré des favoris." : "Ajouté aux favoris.");
   }

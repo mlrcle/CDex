@@ -25,11 +25,12 @@ export async function saveCloudData() {
     data[key] = localStorage.getItem(key);
   });
 
-  await supabase.from("user_data").upsert({
+  const result = await supabase.from("user_data").upsert({
     user_id: user.id,
     data,
     updated_at: new Date().toISOString(),
   });
+  console.log("SUPABASE SAVE RESULT", result);
 }
 
 export async function loadCloudData() {
