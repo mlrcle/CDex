@@ -293,14 +293,18 @@ useEffect(() => {
 
   function isSameAlbum(item: Album) {
   if (!baseAlbum) return false;
-    return (
-      String(item.id) === String(albumId) ||
-      String(item.id) === String(baseAlbum.id) ||
-      String(item.id) === String(baseAlbum.musicBrainzId || "") ||
-      String(item.musicBrainzId || "") === String(albumId) ||
-      String(item.musicBrainzId || "") === String(baseAlbum.id)
-    );
-  }
+
+  const itemMusicBrainzId = (item as any).musicBrainzId;
+  const baseMusicBrainzId = (baseAlbum as any).musicBrainzId;
+
+  return (
+    String(item.id) === String(albumId) ||
+    String(item.id) === String(baseAlbum.id) ||
+    String(item.id) === String(baseMusicBrainzId || "") ||
+    String(itemMusicBrainzId || "") === String(albumId) ||
+    String(itemMusicBrainzId || "") === String(baseAlbum.id)
+  );
+}
 
   const updatedUserAlbums = userAlbums.map((item) => {
     if (!isSameAlbum(item)) return item;
