@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "./components/Navbar";
 import SettingsButton from "./components/settingsbutton";
 import AchievementPopup from "@/app/components/AchievementPopup";
+import CloudSync from "./components/CloudSync";
 
 export const metadata: Metadata = {
   title: "CDex",
@@ -40,6 +41,7 @@ export default function RootLayout({
         <SettingsButton />
 
         <AchievementPopup />
+        <CloudSync />
 
         {children}
       </body>
