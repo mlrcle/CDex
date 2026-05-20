@@ -13,46 +13,71 @@ const STORAGE_KEYS = [
 ];
 
 export async function saveCloudData() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  if (!user) return;
+    console.log("SUPABASE USER", user);
+    console.log("SUPABASE USER ERROR", userError);
 
-  const data: Record<string, string | null> = {};
+    if (!user) {
+      console.log("Aucun utilisateur connecté");
+      return;
+    }
 
-  STORAGE_KEYS.forEach((key) => {
-    data[key] = localStorage.getItem(key);
-  });
+    const data: Record<string, string | null> = {};
 
-  const result = await supabase.from("user_data").upsert({
-    user_id: user.id,
-    data,
-    updated_at: new Date().toISOString(),
-  });
-  console.log("SUPABASE SAVE RESULT", result);
+    STORAGE_KEYS.forEach((key) => {
+      data[key] = localStorage.getItem(key);
+    });
+
+    console.log("DATA TO SAVE", data);
+
+    const { error } = await supabase.from("user_data").upsert({
+      user_id: user.id,
+      data,
+      updated_at: new Date().toISOString(),
+    });
+
+    console.log("SUPABASE SAVE ERROR", error);
+
+    if (!error) {
+      console.log("Sauvegarde cloud réussie");
+    }
+  } catch (err) {
+    console.error("SAVE CLOUD CRASH", err);
+  }
 }
 
 export async function loadCloudData() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) return false;
+    if (!user) return false;
 
-  const { data, error } = await supabase
-    .from("user_data")
-    .select("data")
-    .eq("user_id", user.id)
-    .single();
+    const { data, error } = await supabase
+      .from("user_data")
+      .select("data")
+      .eq("user_id", user.id)
+      .single();
 
-  if (error || !data?.data) return false;
+    console.log("LOAD CLOUD", data, error);
 
-  Object.entries(data.data).forEach(([key, value]) => {
-    if (typeof value === "string") {
-      localStorage.setItem(key, value);
-    }
-  });
+    if (error || !data?.data) return false;
 
-  return true;
+    Object.entries(data.data).forEach(([key, value]) => {
+      if (typeof value === "string") {
+        localStorage.setItem(key, value);
+      }
+    });
+
+    return true;
+  } catch (err) {
+    console.error("LOAD CLOUD CRASH", err);
+    return false;
+  }
 }
