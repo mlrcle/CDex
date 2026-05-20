@@ -1,12 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-
 import { supabase } from "@/app/lib/supabase";
-import {
-  saveCloudData,
-  loadCloudData,
-} from "@/app/lib/cloudSave";
+import { saveCloudData, loadCloudData } from "@/app/lib/cloudSave";
 
 const STORAGE_KEYS = [
   "cdex-user-albums",
@@ -20,63 +16,55 @@ const STORAGE_KEYS = [
   "cdex-seen-achievements",
 ];
 
+function getLocalSnapshot() {
+  return JSON.stringify(
+    STORAGE_KEYS.map((key) => [key, localStorage.getItem(key)])
+  );
+}
+
 export default function CloudSync() {
-  const lastSnapshot = useRef("");
+  const lastLocalSnapshot = useRef("");
+  const lastCloudUpdatedAt = useRef("");
 
   useEffect(() => {
-    let mounted = true;
-
-    async function setupRealtime() {
+    const interval = setInterval(async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user || !mounted) return;
+      if (!user) return;
 
-      const interval = setInterval(async () => {
-        const snapshot = JSON.stringify(
-          STORAGE_KEYS.map((key) => [
-            key,
-            localStorage.getItem(key),
-          ])
-        );
+      const localSnapshot = getLocalSnapshot();
 
-        if (snapshot === lastSnapshot.current) return;
-
-        lastSnapshot.current = snapshot;
-
+      if (localSnapshot !== lastLocalSnapshot.current) {
+        lastLocalSnapshot.current = localSnapshot;
         await saveCloudData();
-      }, 3000);
+      }
 
-      const channel = supabase
-        .channel("cloud-sync")
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "user_data",
-            filter: `user_id=eq.${user.id}`,
-          },
-          async () => {
-            await loadCloudData();
+      const { data } = await supabase
+        .from("user_data")
+        .select("updated_at")
+        .eq("user_id", user.id)
+        .single();
 
-            window.dispatchEvent(new Event("storage"));
-          }
-        )
-        .subscribe();
+      if (!data?.updated_at) return;
 
-      return () => {
-        clearInterval(interval);
-        supabase.removeChannel(channel);
-      };
-    }
+      if (
+        lastCloudUpdatedAt.current &&
+        data.updated_at !== lastCloudUpdatedAt.current
+      ) {
+        lastCloudUpdatedAt.current = data.updated_at;
 
-    setupRealtime();
+        await loadCloudData();
 
-    return () => {
-      mounted = false;
-    };
+        window.location.reload();
+        return;
+      }
+
+      lastCloudUpdatedAt.current = data.updated_at;
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, []);
 
   return null;
