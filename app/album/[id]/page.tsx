@@ -292,6 +292,7 @@ useEffect(() => {
   if (!isLoaded || !baseAlbum) return;
 
   function isSameAlbum(item: Album) {
+  if (!baseAlbum) return false;
     return (
       String(item.id) === String(albumId) ||
       String(item.id) === String(baseAlbum.id) ||
