@@ -86,7 +86,7 @@ export default function ProfilePage() {
         return album;
       }
 
-      const rarity = rollRarity();
+      const rarity = rollRarity(savedAlbums.length);
 
       return {
         ...album,

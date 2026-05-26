@@ -120,7 +120,7 @@ export default function AddPage() {
     const savedAlbums = localStorage.getItem("cdex-user-albums");
     const currentAlbums: UserAlbum[] = savedAlbums ? JSON.parse(savedAlbums) : [];
 
-    const rarity = rollRarity();
+    const rarity = rollRarity(currentAlbums.length);
 
     const newAlbum: UserAlbum = {
       id: `${title}-${artist}-${Date.now()}`

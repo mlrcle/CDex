@@ -57,11 +57,27 @@ export const RARITIES: RarityConfig[] = [
   },
 ];
 
-export function rollRarity() {
-  const random = Math.random() * 100;
+export function rollRarity(albumCount = 0) {
+  if (albumCount === 0) {
+    return getRarityConfig("Commun");
+  }
+
+  const availableRarities = RARITIES.filter((rarity) => {
+    if (rarity.name === "Épique" && albumCount < 10) return false;
+    if (rarity.name === "Légendaire" && albumCount < 30) return false;
+
+    return true;
+  });
+
+  const totalChance = availableRarities.reduce(
+    (total, rarity) => total + rarity.chance,
+    0
+  );
+
+  const random = Math.random() * totalChance;
   let cumulative = 0;
 
-  for (const rarity of RARITIES) {
+  for (const rarity of availableRarities) {
     cumulative += rarity.chance;
 
     if (random <= cumulative) {
@@ -69,7 +85,7 @@ export function rollRarity() {
     }
   }
 
-  return RARITIES[0];
+  return getRarityConfig("Commun");
 }
 
 export function getRarityConfig(name?: string) {

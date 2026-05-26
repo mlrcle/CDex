@@ -259,7 +259,7 @@ function SearchAlbumContent() {
   }
 
   function createAlbumFromRelease(release: MusicBrainzRelease): UserAlbum {
-    const rarity = rollRarity();
+    const rarity = rollRarity(userAlbums.length);
 
     return {
       id: release.id,

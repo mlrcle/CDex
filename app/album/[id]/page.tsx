@@ -49,12 +49,12 @@ function getDisplayRarity(album: Album, discovered: boolean) {
   return discovered ? "Commun" : "Non découvert";
 }
 
-function withDiscoveredRarity(album: Album): Album {
+function withDiscoveredRarity(album: Album, albumCount = 0): Album {
   if (isValidRarity(album.rarity) && typeof album.xp === "number") {
     return album;
   }
 
-  const rarity = rollRarity();
+  const rarity = rollRarity(albumCount);
 
   return {
     ...album,
@@ -193,7 +193,7 @@ export default function AlbumPage() {
       const migratedAlbums = parsedAlbums.map((album) =>
         isValidRarity(album.rarity) && typeof album.xp === "number"
           ? album
-          : withDiscoveredRarity(album)
+          : withDiscoveredRarity(album, parsedAlbums.length)
       );
 
       localStorage.setItem("cdex-user-albums", JSON.stringify(migratedAlbums));
@@ -498,11 +498,14 @@ useEffect(() => {
       return;
     }
 
-    const discoveredAlbum = withDiscoveredRarity({
-      ...album,
-      discovered: true,
-      addedAt: album.addedAt || new Date().toLocaleDateString("fr-FR"),
-    });
+    const discoveredAlbum = withDiscoveredRarity(
+      {
+        ...album,
+        discovered: true,
+        addedAt: album.addedAt || new Date().toLocaleDateString("fr-FR"),
+      },
+      userAlbums.length
+    );
 
     const updatedAlbums = [...userAlbums, discoveredAlbum];
 

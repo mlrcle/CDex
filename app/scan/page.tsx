@@ -219,7 +219,9 @@ export default function ScanPage() {
           ?.map((artist: any) => artist.name)
           .join(", ") || "Artiste inconnu";
 
-      const rarity = rollRarity();
+      const savedAlbums = localStorage.getItem("cdex-user-albums");
+      const currentAlbums: Album[] = savedAlbums ? JSON.parse(savedAlbums) : [];
+      const rarity = rollRarity(currentAlbums.length);
 
       const newAlbum: Album = {
         id: release.id,

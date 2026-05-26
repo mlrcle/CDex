@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { supabase } from "@/app/lib/supabase";
-import { saveCloudData, loadCloudData } from "@/app/lib/cloudSave";
+import { saveCloudData } from "@/app/lib/cloudSave";
 
 const STORAGE_KEYS = [
   "cdex-user-albums",
@@ -23,8 +23,7 @@ function getLocalSnapshot() {
 }
 
 export default function CloudSync() {
-  const lastLocalSnapshot = useRef("");
-  const lastCloudUpdatedAt = useRef("");
+  const lastSnapshot = useRef("");
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -34,51 +33,14 @@ export default function CloudSync() {
 
       if (!user) return;
 
-      const localSnapshot = getLocalSnapshot();
+      const snapshot = getLocalSnapshot();
 
-      if (localSnapshot !== lastLocalSnapshot.current) {
-        lastLocalSnapshot.current = localSnapshot;
-        await saveCloudData();
-      }
+      if (snapshot === lastSnapshot.current) return;
 
-      const { data } = await supabase
-        .from("user_data")
-        .select("updated_at")
-        .eq("user_id", user.id)
-        .single();
+      lastSnapshot.current = snapshot;
 
-      if (!data?.updated_at) return;
-
-      if (
-        lastCloudUpdatedAt.current &&
-        data.updated_at !== lastCloudUpdatedAt.current
-      ) {
-        lastCloudUpdatedAt.current = data.updated_at;
-
-        const isEditing =
-  document.activeElement instanceof HTMLInputElement ||
-  document.activeElement instanceof HTMLTextAreaElement ||
-  document.activeElement instanceof HTMLSelectElement ||
-  document.body.dataset.editing === "true";
-
-const protectedPage =
-  window.location.pathname.startsWith("/album") ||
-  window.location.pathname.startsWith("/add") ||
-  window.location.pathname.startsWith("/settings") ||
-  window.location.pathname.startsWith("/auth");
-
-if (isEditing || protectedPage) {
-  return;
-}
-
-await loadCloudData();
-
-window.location.reload();
-return;
-      }
-
-      lastCloudUpdatedAt.current = data.updated_at;
-    }, 3000);
+      await saveCloudData();
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
